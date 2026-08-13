@@ -7,6 +7,7 @@ import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import { PDF_ASSETS } from "./config/pdfAssets";
 import { CATEGORIAS_ITEM, PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
+import { assetPath } from "./utils/assetPath.js";
 
 const STORAGE_KEY = "lucas-franco-custom-packages-v2";
 const EQUIPMENT_KEY = "lucas-franco-equipment-v3";
@@ -35,8 +36,8 @@ const DEFAULT_ESTRUTURAS = [
     nome: "Estrutura 01",
     descricao: "Estrutura profissional personalizada para o evento.",
     imagens: [
-      "/images/estruturas/estrutura-01-a.png",
-      "/images/estruturas/estrutura-01-b.png",
+      assetPath("/images/estruturas/estrutura-01-a.png"),
+      assetPath("/images/estruturas/estrutura-01-b.png"),
     ],
     itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
@@ -46,7 +47,7 @@ const DEFAULT_ESTRUTURAS = [
     id: "estrutura-02",
     nome: "Estrutura 02",
     descricao: "Estrutura profissional personalizada para o evento.",
-    imagens: ["/images/estruturas/estrutura-02.png"],
+    imagens: [assetPath("/images/estruturas/estrutura-02.png")],
     itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 2,
@@ -55,7 +56,7 @@ const DEFAULT_ESTRUTURAS = [
     id: "estrutura-03",
     nome: "Estrutura 03",
     descricao: "Estrutura profissional personalizada para o evento.",
-    imagens: ["/images/estruturas/estrutura-03.png"],
+    imagens: [assetPath("/images/estruturas/estrutura-03.png")],
     itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 3,
@@ -64,7 +65,7 @@ const DEFAULT_ESTRUTURAS = [
     id: "estrutura-04",
     nome: "Estrutura 04",
     descricao: "Estrutura profissional personalizada para o evento.",
-    imagens: ["/images/estruturas/estrutura-04.png"],
+    imagens: [assetPath("/images/estruturas/estrutura-04.png")],
     itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 4,

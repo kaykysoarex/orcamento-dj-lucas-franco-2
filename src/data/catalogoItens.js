@@ -1,4 +1,6 @@
-export const PLACEHOLDER_ITEM_IMAGE = "/images/placeholder-item.png";
+import { assetPath } from "../utils/assetPath.js";
+
+export const PLACEHOLDER_ITEM_IMAGE = assetPath("/images/placeholder-item.png");
 
 export const CATEGORIAS_ITEM = [
   { id: "estrutura", nome: "Estrutura" },
@@ -7,7 +9,7 @@ export const CATEGORIAS_ITEM = [
   { id: "servico", nome: "Serviços profissionais" },
 ];
 
-const imagem = (categoria, slug) => `/images/${categoria}/${slug}.png`;
+const imagem = (categoria, slug) => assetPath(`/images/${categoria}/${slug}.png`);
 
 export const catalogoItens = [
   { id: "estrutura-prime", slug: "estrutura-prime", nome: "Estrutura Prime", descricao: "Estrutura para composição da montagem do evento.", categoria: "estrutura", imagem: imagem("estruturas", "estrutura-prime"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 1 },
