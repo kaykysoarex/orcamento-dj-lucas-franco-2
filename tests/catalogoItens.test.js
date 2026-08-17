@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { CATEGORIAS_ITEM, PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "../src/data/catalogoItens.js";
 
-test("cadastra os 24 itens com IDs e imagens estáveis", () => {
-  assert.equal(catalogoItens.length, 24);
+test("cadastra os 25 itens com IDs e imagens estáveis", () => {
+  assert.equal(catalogoItens.length, 25);
   assert.equal(buscarItemPorId("bazuca-co2").imagem, "/images/efeitos/bazuca-co2.png");
   assert.equal(buscarItemPorId("maquina-fumaca-profissional").imagem, "/images/efeitos/maquina-fumaca-profissional.png");
+  assert.equal(buscarItemPorId("pista-led-slim-paris-black").categoria, "efeito");
   assert.ok(catalogoItens.every((item) => item.id && item.slug && item.imagem && item.imagemFallback === PLACEHOLDER_ITEM_IMAGE));
 });
 
