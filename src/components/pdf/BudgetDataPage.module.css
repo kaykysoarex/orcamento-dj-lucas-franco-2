@@ -1,0 +1,217 @@
+/* Styles for the BudgetDataPage component — page surface is 1055x1491 design */
+:root {
+  --bg: #07090B;
+  --gold: rgba(185,135,45,0.85);
+  --gold-soft: rgba(190,139,48,0.65);
+  --gold-frame: rgba(185,135,45,0.55);
+  --ink-light: #F2EEE6;
+}
+
+.container {
+  /* viewport: visible area that will receive the single scale */
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 1055 / 1491;
+  overflow: hidden;
+  isolation: isolate; /* create new stacking context */
+}
+
+.page {
+  /* design surface placed at top-left and scaled once by --page-scale */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1055px;
+  height: 1491px;
+  transform-origin: top left;
+  transform: scale(var(--page-scale, 1));
+  overflow: hidden;
+  isolation: isolate;
+  /* robust background: gradient + radial vignette */
+  background:
+    radial-gradient(circle at 55% 35%, rgba(28,31,35,0.35), transparent 48%),
+    linear-gradient(180deg, #0a0c0f 0%, #050607 100%);
+  z-index: 0;
+  outline: 2px solid rgba(255,0,0,0.6); /* diagnostic - remove after validation */
+}
+
+/* texture layer separate */
+.texture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-repeat: repeat;
+  background-size: 420px 420px;
+  opacity: 0.08;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* subtle radial vignette (above texture) */
+.page::before {
+  content: "";
+  position: absolute; inset: 0; z-index: 2;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.25) 100%);
+  pointer-events: none;
+}
+
+/* frame */
+.frame {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  border: 1px solid var(--gold-frame);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* decorative diagonals (behind content but above texture) */
+.decorativeLineTop,
+.decorativeLineBottom {
+  position: absolute;
+  height: 3px;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+.decorativeLineTop {
+  background: #279DFF;
+  box-shadow: 0 0 8px rgba(39,157,255,0.75);
+  opacity: 0.95;
+  transform-origin: left top;
+}
+
+.decorativeLineBottom {
+  background: #E0A53A;
+  box-shadow: 0 0 8px rgba(224,165,58,0.65);
+  opacity: 0.95;
+  transform-origin: left top;
+}
+
+/* Title */
+.title {
+  position: absolute;
+  z-index: 4;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 82px;
+  font-weight: 400;
+  line-height: 0.86;
+  letter-spacing: 0.4px;
+  color: #d1a044;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+.title div { display: block; }
+.titleLine {
+  height: 2px;
+  background: var(--gold-soft);
+  margin-top: 12px;
+  z-index: 4;
+}
+
+
+/* DJ photo (legacy) */
+.djPhoto {
+  position: absolute;
+  z-index: 3;
+  object-fit: contain;
+  pointer-events: none;
+  top: 165px;
+  right: 25px;
+  width: 520px;
+  height: auto;
+  max-width: none;
+  object-position: bottom right;
+}
+
+/* DJ photo (new - used by BudgetDataPage) */
+.dj {
+  position: absolute;
+  z-index: 3;
+  height: 1250px;
+  width: auto;
+  right: -110px;
+  bottom: 55px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Logo */
+.logo {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  left: 94px;
+  bottom: 105px;
+  width: 350px;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+}
+
+/* Content column / fields */
+.contentColumn {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+}
+
+.field {
+  position: absolute;
+  display: block;
+}
+
+.label {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 4px;
+  color: #c99536;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.value {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: 0.2px;
+  color: #f1eee7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(190,139,48,0.65);
+  bottom: 8px;
+}
+
+/* Printing rules */
+.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  .page { transform: none !important; }
+  .texture { opacity: 0.12; }
+}

@@ -1,0 +1,67 @@
+/* Styles for BudgetStructurePage (design surface 1055x1491) */
+:root{
+  --bg: #07090B;
+  --gold: #c99435;
+  --gold-soft: rgba(201,169,97,0.35);
+  --ink-light: #F2EEE6;
+}
+
+.container{
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 1055 / 1491;
+  overflow: hidden;
+}
+
+.page{
+  position: absolute;
+  top:0; left:0;
+  width:1055px; height:1491px;
+  transform-origin: top left;
+  transform: scale(var(--page-scale,1));
+  background: linear-gradient(180deg,#07090B 0%, #040506 100%);
+}
+
+.texture{ position:absolute; inset:0; z-index:1; opacity:0.06; background-repeat:repeat; background-size:420px 420px; mix-blend-mode:overlay; }
+.frame{ position:absolute; left:16px; top:16px; right:16px; bottom:16px; border:1px solid rgba(185,135,45,0.55); z-index:2; pointer-events:none; }
+
+.decorativeLineTop, .decorativeLineBottom{ position:absolute; height:3px; z-index:2; pointer-events:none; border-radius:2px; }
+.decorativeLineTop{ background:#279DFF; box-shadow:0 0 8px rgba(39,157,255,0.75); }
+.decorativeLineBottom{ background:var(--gold); box-shadow:0 0 8px rgba(224,165,58,0.45); }
+
+/* Title */
+.title{ position:absolute; font-family: "Cormorant Garamond", Georgia, serif; font-size:78px; font-weight:400; line-height:0.9; color:#c99435; left:90px; top:75px; width:760px; z-index:3; }
+.title div{ display:block; }
+
+/* Structure name */
+.structureName{ position:absolute; left:92px; top:245px; width:760px; z-index:3; }
+.structureNameText{ font-family: "Montserrat", Arial, sans-serif; font-size:36px; font-weight:300; color:#f2eee6; margin:0; }
+.underline{ height:2px; width:95px; background:#c99435; margin-top:10px; }
+
+/* Photo expanded */
+.photoWrap{ position:absolute; left:62px; top:335px; width:931px; height:640px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.photo{ width:100%; height:100%; object-fit:contain; object-position:center; border:2px solid rgba(185,135,45,0.65); box-sizing:border-box; }
+.photoPlaceholder{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:2px dashed rgba(255,255,255,0.04); color:var(--ink-light); }
+.photoPlaceholderInner{ font-family: Montserrat, Arial, sans-serif; font-size:16px; color: rgba(242,238,230,0.6); }
+
+/* Included section */
+.includedTitle{ position:absolute; left:92px; top:1025px; width:871px; font-family: "Cormorant Garamond", Georgia, serif; font-size:38px; font-weight:400; color:#c99435; z-index:3; }
+
+.includedGrid{ position:absolute; left:92px; top:1085px; width:871px; z-index:3; }
+.includedList{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px 28px; }
+.includedItem{ display:flex; align-items:flex-start; gap:12px; }
+.check{ color:var(--gold); font-weight:700; margin-top:6px; font-size:20px; }
+.includedName{ font-family: "Montserrat", Arial, sans-serif; font-size:26px; color:#f2eee6; font-weight:300; line-height:1.25; }
+.noItems{ font-family: Montserrat, Arial, sans-serif; font-size:18px; color: rgba(242,238,230,0.6); }
+
+/* Logo container - centered */
+.logoContainer{ position:absolute; left:0; right:0; bottom:45px; display:flex; justify-content:center; align-items:center; z-index:3; }
+.logo{ width:280px; height:auto; object-fit:contain; }
+
+.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+@page{ size:A4 portrait; margin:0; }
+
+@media print{ .page { transform: none !important; } .texture{ opacity:0.12 } }
+
