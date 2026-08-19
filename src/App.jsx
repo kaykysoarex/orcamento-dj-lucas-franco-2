@@ -1,20 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, X, Copy, Printer, Check, Music2, CalendarDays, User, MapPin, MessageSquareText, ImagePlus, Save } from "lucide-react";
-import ItemProposta from "./components/ItemProposta.jsx";
 import SeletorEstruturas from "./components/SeletorEstruturas.jsx";
 import PdfCoverPage from "./components/pdf/PdfCoverPage.jsx";
 import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import PdfBudgetStructurePage from "./components/pdf/PdfBudgetStructurePage.jsx";
-import PdfLightingEffectsPage from "./components/pdf/PdfLightingEffectsPage.jsx";
-import { PDF_ASSETS } from "./config/pdfAssets";
-import { CATEGORIAS_ITEM, PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
+import PdfProposalCategoryPages from "./components/pdf/PdfProposalCategoryPages.jsx";
+import InvestmentPage from "./components/pdf/InvestmentPage";
+import { PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
+import { buildProposalPdfCategories } from "./pdf/utils/proposalCategories.js";
 import { assetPath } from "./utils/assetPath.js";
+import { formatBudgetValue, formatBudgetValueInput, normalizeBudgetValueInCents, parseBudgetValueInput } from "./utils/budgetValue.js";
 
 const STORAGE_KEY = "lucas-franco-custom-packages-v2";
 const EQUIPMENT_KEY = "lucas-franco-equipment-v3";
 const COUNTER_KEY = "lucas-franco-proposal-counter";
 const PAYMENT_KEY = "lucas-franco-payment-terms";
+const BUDGET_VALUE_KEY = "lucas-franco-budget-value-in-cents";
 const PROPOSALS_KEY = "lucas-franco-proposals";
 const DEFAULT_PAYMENT_TERMS =
   "Sinal de 30% na assinatura do contrato, restante na semana do evento. Pagamento via Pix ou cartão em até 12x (com taxa da operadora). Atendimento somente com pacote fechado.";
@@ -266,6 +268,9 @@ export default function OrcamentoApp() {
   const [pendingDeletePackageId, setPendingDeletePackageId] = useState(null);
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
   const [notes, setNotes] = useState("");
+  const [budgetValueInCents, setBudgetValueInCents] = useState(0);
+  const [budgetValueInput, setBudgetValueInput] = useState("");
+  const [budgetValueError, setBudgetValueError] = useState("");
   const [paymentTerms, setPaymentTerms] = useState(DEFAULT_PAYMENT_TERMS);
   const [showPaymentTerms, setShowPaymentTerms] = useState(true);
   const [proposalNumber, setProposalNumber] = useState(null);
@@ -278,6 +283,7 @@ export default function OrcamentoApp() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const saveTimer = useRef(null);
   const savePaymentTimer = useRef(null);
+  const saveBudgetValueTimer = useRef(null);
 
   // When editing a saved proposal, restore form fields so preview and PDF show the same values
   useEffect(() => {
@@ -290,6 +296,10 @@ export default function OrcamentoApp() {
     setEventLocal(proposal.eventLocal || "");
     setEventType(proposal.eventType || "");
     setShowDuration(proposal.showDuration || "");
+    const restoredBudgetValueInCents = normalizeBudgetValueInCents(proposal.budgetValueInCents);
+    setBudgetValueInCents(restoredBudgetValueInCents);
+    setBudgetValueInput(restoredBudgetValueInCents ? formatBudgetValue(restoredBudgetValueInCents) : "");
+    setBudgetValueError("");
 
     // restore structure mode and selection if present
     const mode = proposal.structureMode || (proposal.packageId ? 'with_structure' : 'none');
@@ -333,6 +343,10 @@ export default function OrcamentoApp() {
     const savedPayment = loadText(PAYMENT_KEY, null);
     if (savedPayment) setPaymentTerms(savedPayment);
 
+    const savedBudgetValueInCents = normalizeBudgetValueInCents(loadText(BUDGET_VALUE_KEY, "0"));
+    setBudgetValueInCents(savedBudgetValueInCents);
+    setBudgetValueInput(savedBudgetValueInCents ? formatBudgetValue(savedBudgetValueInCents) : "");
+
     const savedList = loadJSON(PROPOSALS_KEY, []);
     if (Array.isArray(savedList)) setSavedProposals(savedList);
 
@@ -368,6 +382,16 @@ export default function OrcamentoApp() {
     }, 600);
     return () => clearTimeout(savePaymentTimer.current);
   }, [paymentTerms, loaded]);
+
+  // Persist only the integer amount. The formatted input remains presentation state.
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveBudgetValueTimer.current) clearTimeout(saveBudgetValueTimer.current);
+    saveBudgetValueTimer.current = setTimeout(() => {
+      if (!saveText(BUDGET_VALUE_KEY, String(budgetValueInCents))) setSaveState("error");
+    }, 350);
+    return () => clearTimeout(saveBudgetValueTimer.current);
+  }, [budgetValueInCents, loaded]);
 
   const selectedPkg = packages.find((p) => p.id === selectedPkgId) || packages[0];
   const proposalPkg = selectedPkg;
@@ -424,22 +448,11 @@ export default function OrcamentoApp() {
   })).filter((entry) => entry.itemCatalogo?.ativo);
 
   const selectedProposalItems = [...itensInclusos, ...packageItems, ...adicionaisItems];
-  const pdfSelectedItems = selectedProposalItems.map(({ itemOrcamento, itemCatalogo }) => ({
-    id: itemCatalogo.id,
-    nome: itemCatalogo.nome,
-    descricao: itemCatalogo.descricao,
-    categoria: itemCatalogo.categoria,
-    quantidade: itemOrcamento.quantidade,
-    imagem: itemCatalogo.imagem,
-    imagemFallback: itemCatalogo.imagemFallback,
-  }));
-
-  const groupedProposalItems = CATEGORIAS_ITEM
-    .map((categoria) => ({
-      ...categoria,
-      items: selectedProposalItems.filter((entry) => entry.itemCatalogo.categoria === categoria.id),
-    }))
-    .filter((categoria) => categoria.items.length > 0);
+  const pdfProposalCategories = buildProposalPdfCategories({
+    includedItemIds: estruturaSelecionada?.itensInclusosIds || [],
+    manualItems: [...(proposalPkg?.items || []), ...equipamentosAdicionais],
+    resolveItem: (itemId) => buscarItemPorId(itemId) || customEquipment.find((item) => item.id === itemId),
+  });
 
   function selectPackage(id) {
     setSelectedPkgId(id);
@@ -508,6 +521,22 @@ export default function OrcamentoApp() {
     const dateValid = validateClientField("eventDate", eventDate);
     const localValid = validateClientField("eventLocal", eventLocal);
     return nameValid && dateValid && localValid;
+  }
+
+  function handleBudgetValueChange(event) {
+    const parsed = parseBudgetValueInput(event.target.value);
+    setBudgetValueInput(parsed.input);
+    setBudgetValueError(parsed.valid ? "" : "Informe um valor monetário válido e não negativo.");
+    if (parsed.valid) setBudgetValueInCents(parsed.cents);
+  }
+
+  function handleBudgetValueFocus() {
+    setBudgetValueInput(budgetValueInCents ? formatBudgetValueInput(budgetValueInCents) : "");
+  }
+
+  function handleBudgetValueBlur() {
+    if (budgetValueError) return;
+    setBudgetValueInput(budgetValueInCents ? formatBudgetValue(budgetValueInCents) : "");
   }
 
   function updatePackageField(id, field, value) {
@@ -637,6 +666,7 @@ export default function OrcamentoApp() {
       extraItems: extraItems.map((item) => ({ ...item })),
       paymentTerms,
       showPaymentTerms,
+      budgetValueInCents,
       total,
     };
     const idx = savedProposals.findIndex((proposal) => proposal.id === snapshot.id);
@@ -661,6 +691,9 @@ export default function OrcamentoApp() {
     setShowDuration("");
     setClientErrors({});
     setNotes("");
+    setBudgetValueInCents(0);
+    setBudgetValueInput("");
+    setBudgetValueError("");
     setExtraItems([]);
     setPriceOverride(null);
     setCurrentProposalId(null);
@@ -673,22 +706,25 @@ export default function OrcamentoApp() {
   }
 
   async function waitForPrintImages() {
-    const images = Array.from(document.querySelectorAll(".obg-print-area img"));
-    images.forEach((image) => { image.loading = "eager"; });
-    await Promise.all(images.map((image) => new Promise((resolve) => {
-      const finish = async () => {
-        if (typeof image.decode === "function") {
-          try { await image.decode(); } catch (error) { /* o componente já aplicou o fallback */ }
+    for (let pass = 0; pass < 2; pass += 1) {
+      const images = Array.from(document.querySelectorAll(".obg-print-area img"));
+      images.forEach((image) => { image.loading = "eager"; });
+      await Promise.all(images.map((image) => new Promise((resolve) => {
+        const finish = async () => {
+          if (typeof image.decode === "function") {
+            try { await image.decode(); } catch (error) { /* asset ausente não bloqueia a impressão */ }
+          }
+          resolve();
+        };
+        if (image.complete) finish();
+        else {
+          image.addEventListener("load", finish, { once: true });
+          image.addEventListener("error", finish, { once: true });
         }
-        resolve();
-      };
-      if (image.complete) {
-        finish();
-      } else {
-        image.addEventListener("load", finish, { once: true });
-        image.addEventListener("error", finish, { once: true });
-      }
-    })));
+      })));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    await document.fonts?.ready;
   }
 
   async function handlePrint() {
@@ -738,7 +774,7 @@ export default function OrcamentoApp() {
         .forEach((it) => lines.push(`✔ ${it.desc} (+${formatBRL(it.price)})`));
     }
     lines.push("");
-    lines.push(`*Valor total: ${formatBRL(total)}*`);
+    lines.push(`*Valor total: ${budgetValueInCents > 0 ? formatBudgetValue(budgetValueInCents) : formatBRL(total)}*`);
     lines.push(`Proposta válida até ${validUntil}`);
     if (notes) {
       lines.push("");
@@ -845,6 +881,7 @@ export default function OrcamentoApp() {
           font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
           color: var(--ink-soft); margin: 0 0 10px; font-weight: 700;
         }
+        .obg-section-help { margin: -2px 0 12px; color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
 
         .obg-field { margin-bottom: 10px; }
         .obg-field:last-child { margin-bottom: 0; }
@@ -858,11 +895,12 @@ export default function OrcamentoApp() {
           background: #fff; -webkit-appearance: none; appearance: none;
         }
         .obg-field input:focus, .obg-field textarea:focus, .obg-field select:focus {
-          outline: none; border-color: var(--accent);
+          outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(35, 101, 152, .15);
         }
         .obg-field input.obg-input-error { border-color: #b34242; }
         .obg-required { color: #b34242; }
         .obg-field-error { color: #b34242; font-size: 11px; margin: 5px 0 0; font-weight: 600; }
+        .obg-field-help { color: var(--ink-soft); font-size: 11px; margin: 5px 0 0; }
         .obg-field textarea { resize: vertical; min-height: 64px; }
 
         .obg-currency-wrap { position: relative; }
@@ -1497,6 +1535,30 @@ export default function OrcamentoApp() {
           </div>
 
           <div className="obg-section">
+            <h2>Valor do orçamento</h2>
+            <p className="obg-section-help">Informe o valor total que será apresentado ao cliente.</p>
+            <div className="obg-field">
+              <label htmlFor="budget-value">Valor total da proposta</label>
+              <input
+                id="budget-value"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={budgetValueInput}
+                onFocus={handleBudgetValueFocus}
+                onChange={handleBudgetValueChange}
+                onBlur={handleBudgetValueBlur}
+                placeholder="R$ 12.500,00"
+                aria-invalid={Boolean(budgetValueError)}
+                aria-describedby="budget-value-help budget-value-error"
+                className={budgetValueError ? "obg-input-error" : ""}
+              />
+              <p id="budget-value-help" className="obg-field-help">Use vírgula para os centavos.</p>
+              {budgetValueError && <p id="budget-value-error" className="obg-field-error" role="alert">{budgetValueError}</p>}
+            </div>
+          </div>
+
+          <div className="obg-section">
             <h2>Forma de pagamento</h2>
             <div className="obg-field">
               <textarea value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
@@ -1560,93 +1622,22 @@ export default function OrcamentoApp() {
                 />
 
                 {structureMode === 'with_structure' && estruturaSelecionadaId && (
-                  <PdfBudgetStructurePage
-                    structure={estruturaSelecionada}
-                    includedItems={(estruturaSelecionada?.itensInclusosIds || []).map((id) => {
-                      const itm = buscarItemPorId(id) || customEquipment.find((c) => c.id === id);
-                      return itm ? { id: itm.id, nome: itm.nome } : null;
-                    }).filter(Boolean)}
+                  <PdfBudgetStructurePage structure={estruturaSelecionada} />
+                )}
+
+                <PdfProposalCategoryPages categories={pdfProposalCategories} />
+
+                {budgetValueInCents > 0 && (
+                  <InvestmentPage
+                    valueInCents={budgetValueInCents}
+                    proposalNumber={proposalNumber}
+                    clientName={clientName}
+                    eventDate={formatDateBR(eventDate)}
+                    eventLocation={eventLocal}
+                    showPaymentTerms={showPaymentTerms}
                   />
                 )}
 
-                <PdfLightingEffectsPage items={pdfSelectedItems} />
-
-                <div className="obg-card">
-                <div className="brand">
-                  <div className="badge"><Music2 size={14} /></div>
-                  <div className="name">LUCAS FRANCO — DJ</div>
-                  <div className="num">Nº {String(proposalNumber || 1).padStart(4, "0")}</div>
-                </div>
-
-                <h3>{proposalPkg?.name || "Estrutura selecionada para o seu evento"}</h3>
-                <div className="subtitle">Proposta personalizada de sonorização e ambientação</div>
-
-                {(clientName || eventDate || eventLocal) && (
-                  <div className="meta-row">
-                    {clientName && <span><User size={12} /> {clientName}</span>}
-                    {eventDate && <span><CalendarDays size={12} /> {formatDateBR(eventDate)}</span>}
-                    {eventLocal && (
-                      <span>
-                        <MapPin size={12} />
-                        {eventLocal}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <hr className="divider" />
-
-                {proposalPkg?.photos?.length > 0 && (
-                  <div className="card-photos">
-                    {proposalPkg.photos.map((src, idx) => (
-                      <img key={idx} src={src} alt="" />
-                    ))}
-                  </div>
-                )}
-
-                <div className="obg-card-items">
-                  {groupedProposalItems.map((group) => (
-                    <section className="obg-item-group" key={group.id}>
-                      <h4>{group.nome}</h4>
-                      {group.items.map(({ itemOrcamento, itemCatalogo }) => (
-                        <ItemProposta
-                          key={itemOrcamento.itemId}
-                          item={itemCatalogo}
-                          quantidade={itemOrcamento.quantidade}
-                        />
-                      ))}
-                    </section>
-                  ))}
-                  {extraItems.some((item) => item.desc) && (
-                    <section className="obg-item-group">
-                      <h4>Itens adicionais</h4>
-                      {extraItems.filter((item) => item.desc).map((item) => (
-                        <div className="obg-proposal-extra-item" key={item.id}>
-                          <span className="tick">✓</span>
-                          <span>{item.desc} <span className="obg-extra-price">(+{formatBRL(item.price)})</span></span>
-                        </div>
-                      ))}
-                    </section>
-                  )}
-                </div>
-
-                <div className="price-block">
-                  <div className="label">Investimento total</div>
-                  <div className="value">{formatBRL(total)}</div>
-                  <div className="validity">Proposta válida até {validUntil}</div>
-                </div>
-
-                {notes && <div className="notes">{notes}</div>}
-
-                {showPaymentTerms && paymentTerms && (
-                  <div className="payment-terms">
-                    <div className="payment-terms-label">Forma de pagamento</div>
-                    {paymentTerms}
-                  </div>
-                )}
-
-                <div className="footer-tag">A trilha sonora do seu evento</div>
-              </div>
             </div>
           </div>
         </div>

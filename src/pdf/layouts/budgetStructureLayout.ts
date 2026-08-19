@@ -27,13 +27,7 @@ export const BUDGET_STRUCTURE_LAYOUT = {
     left: 62,
     top: 335,
     width: 931,
-    height: 640,
-  },
-
-  includedSection: {
-    left: 92,
-    top: 1025,
-    width: 871,
+    height: 790,
   },
 
   decorative: {

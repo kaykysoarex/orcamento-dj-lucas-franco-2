@@ -58,7 +58,7 @@ export const BUDGET_DATA_LAYOUT = {
 
   logo: {
     left: 94,
-    bottom: 105,
+    bottom: 8,
     width: 360,
   },
 

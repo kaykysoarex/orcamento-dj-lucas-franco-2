@@ -30,21 +30,11 @@
 .structureNameText{ font-family: "Montserrat", Arial, sans-serif; font-size:36px; font-weight:300; color:#f2eee6; margin:0; }
 .underline{ height:2px; width:95px; background:#c99435; margin-top:10px; }
 
-/* Photo expanded */
-.photoWrap{ position:absolute; left:62px; top:335px; width:931px; height:640px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-.photo{ width:100%; height:100%; object-fit:cover; object-position:center center; border:2px solid rgba(185,135,45,0.65); box-sizing:border-box; }
+/* Large image surface: contain preserves the original equipment proportions. */
+.photoWrap{ position:absolute; left:62px; top:335px; width:931px; height:790px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.photo{ width:100%; height:100%; object-fit:contain; object-position:center; border:2px solid rgba(185,135,45,0.65); box-sizing:border-box; }
 .photoPlaceholder{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:2px dashed rgba(255,255,255,0.04); color:var(--ink-light); }
 .photoPlaceholderInner{ font-family: Montserrat, Arial, sans-serif; font-size:16px; color: rgba(242,238,230,0.6); }
-
-/* Included section */
-.includedTitle{ position:absolute; left:92px; top:1025px; width:871px; font-family: "Cormorant Garamond", Georgia, serif; font-size:38px; font-weight:400; color:#c99435; z-index:3; }
-
-.includedGrid{ position:absolute; left:92px; top:1085px; width:871px; z-index:3; }
-.includedList{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px 28px; }
-.includedItem{ display:flex; align-items:flex-start; gap:12px; }
-.check{ color:var(--gold); font-weight:700; margin-top:6px; font-size:20px; }
-.includedName{ font-family: "Montserrat", Arial, sans-serif; font-size:26px; color:#f2eee6; font-weight:300; line-height:1.25; }
-.noItems{ font-family: Montserrat, Arial, sans-serif; font-size:18px; color: rgba(242,238,230,0.6); }
 
 /* Logo container - centered */
 .logoContainer{ position:absolute; left:0; right:0; bottom:45px; display:flex; justify-content:center; align-items:center; z-index:3; }

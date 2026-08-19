@@ -1,0 +1,52 @@
+.page {
+  position: relative;
+  width: 1055px;
+  height: 1491px;
+  overflow: hidden;
+  box-sizing: border-box;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 22% 13%, rgba(27, 110, 178, .18), transparent 19%),
+    radial-gradient(circle at 78% 78%, rgba(175, 110, 20, .10), transparent 23%),
+    linear-gradient(135deg, #090b0e 0%, #16181c 50%, #08090b 100%);
+}
+
+.page::before { position: absolute; inset: 0; z-index: 0; background: repeating-linear-gradient(130deg, rgba(255, 255, 255, .012) 0 1px, transparent 1px 10px); content: ""; pointer-events: none; }
+.frame { position: absolute; inset: 16px; z-index: 1; border: 1px solid rgba(201, 148, 53, .64); pointer-events: none; }
+.blueLight { position: absolute; top: -88px; left: -22px; z-index: 1; width: 300px; height: 5px; background: #279dff; box-shadow: 0 0 18px rgba(39, 157, 255, .85); transform: rotate(48deg); transform-origin: left center; }
+.goldLight { position: absolute; right: -62px; bottom: 150px; z-index: 1; width: 260px; height: 4px; background: #e0a53a; box-shadow: 0 0 14px rgba(224, 165, 58, .65); transform: rotate(37deg); transform-origin: right center; }
+
+.proposalHeader { position: absolute; top: 67px; right: 92px; left: 92px; z-index: 3; display: flex; align-items: center; justify-content: space-between; color: rgba(242, 238, 230, .9); font-family: "Montserrat", Arial, sans-serif; font-size: 17px; font-weight: 500; letter-spacing: 2.1px; }
+.brand { display: flex; align-items: center; gap: 13px; }
+.musicMark { display: inline-flex; width: 29px; height: 29px; align-items: center; justify-content: center; border: 1px solid rgba(212, 161, 66, .86); border-radius: 50%; color: #d4a142; }
+.proposalNumber { color: #d4a142; font-size: 18px; font-weight: 600; letter-spacing: 2px; }
+.headerRule { position: absolute; top: 121px; right: 92px; left: 92px; z-index: 3; height: 1px; background: linear-gradient(90deg, rgba(201, 148, 53, .72), rgba(201, 148, 53, .25)); }
+
+.content { position: absolute; top: 177px; right: 92px; left: 92px; z-index: 3; text-align: center; }
+.eyebrow { margin: 0 0 24px; color: rgba(201, 148, 53, .85); font-family: "Montserrat", Arial, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 4px; }
+.title { margin: 0; color: #d4a142; font-family: "Cormorant Garamond", Georgia, serif; font-size: 100px; font-weight: 400; line-height: .86; letter-spacing: 1px; }
+.subtitle { margin: 22px 0 0; color: #f2eee6; font-family: "Montserrat", Arial, sans-serif; font-size: 33px; font-weight: 500; letter-spacing: 6px; }
+.intro { max-width: 700px; margin: 48px auto 0; color: rgba(242, 238, 230, .84); font-family: "Montserrat", Arial, sans-serif; font-size: 25px; font-weight: 300; line-height: 1.52; }
+
+.eventDetails { display: grid; grid-template-columns: 1.05fr .9fr 1.15fr; max-width: 860px; min-height: 102px; margin: 56px auto 0; text-align: left; }
+.eventDetail { min-width: 0; padding: 0 28px; }
+.eventDetail:first-child { padding-left: 0; }
+.eventDetail:last-child { padding-right: 0; }
+.eventDetail + .eventDetail { border-left: 1px solid rgba(201, 148, 53, .45); }
+.eventLabel { margin: 0 0 13px; color: #d4a142; font-family: "Montserrat", Arial, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 2px; }
+.eventValue { display: -webkit-box; min-height: 56px; margin: 0; overflow: hidden; color: rgba(242, 238, 230, .94); font-family: "Montserrat", Arial, sans-serif; font-size: 23px; font-weight: 400; line-height: 1.22; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.eventValueMedium { font-size: 20px; }
+.eventValueLong { font-size: 18px; line-height: 1.28; }
+
+.valueArea { max-width: 800px; margin: 64px auto 0; padding: 34px 0 35px; border-top: 1px solid rgba(201, 148, 53, .65); border-bottom: 1px solid rgba(201, 148, 53, .42); }
+.valueLabel { margin: 0; color: #d4a142; font-family: "Montserrat", Arial, sans-serif; font-size: 18px; font-weight: 500; letter-spacing: 3px; }
+.value { max-width: 800px; margin: 22px auto 0; overflow: hidden; color: #f2eee6; font-family: "Cormorant Garamond", Georgia, serif; font-size: 96px; font-weight: 500; line-height: 1; letter-spacing: .5px; text-overflow: clip; white-space: nowrap; }
+.valueMedium { font-size: 82px; }
+.valueLong { font-size: 69px; }
+.paymentNote { max-width: 540px; margin: 28px auto 0; color: rgba(242, 238, 230, .68); font-family: "Montserrat", Arial, sans-serif; font-size: 18px; font-weight: 300; line-height: 1.45; }
+
+.footer { position: absolute; right: 92px; bottom: 62px; left: 92px; z-index: 4; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.logo { display: block; width: 260px; height: auto; object-fit: contain; }
+.closing { margin: 24px 0 0; color: rgba(242, 238, 230, .8); font-family: "Cormorant Garamond", Georgia, serif; font-size: 30px; font-weight: 400; font-style: italic; }
+
+.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }

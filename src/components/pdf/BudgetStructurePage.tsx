@@ -12,15 +12,12 @@ type StructureType = {
   itensInclusosIds?: string[];
 };
 
-type IncludedItem = { id: string; nome: string };
-
 type Props = {
   structure: StructureType | null;
-  includedItems: IncludedItem[];
   mode?: "preview" | "export";
 };
 
-export default function BudgetStructurePage({ structure, includedItems = [], mode = "preview" }: Props) {
+export default function BudgetStructurePage({ structure, mode = "preview" }: Props) {
   const [imageFailed, setImageFailed] = useState(false);
 
   if (!structure) return null;
@@ -86,27 +83,6 @@ export default function BudgetStructurePage({ structure, includedItems = [], mod
               className={styles.photo}
               onError={() => setImageFailed(true)}
             />
-          )}
-        </div>
-
-        {/* Included title */}
-        <div className={styles.includedTitle} style={{ left: `${BUDGET_STRUCTURE_LAYOUT.includedSection.left}px`, top: `${BUDGET_STRUCTURE_LAYOUT.includedSection.top}px`, width: `${BUDGET_STRUCTURE_LAYOUT.includedSection.width}px` }}>
-          INCLUSO NESTA ESTRUTURA
-        </div>
-
-        {/* Included items list */}
-        <div className={styles.includedGrid} style={{ left: `${BUDGET_STRUCTURE_LAYOUT.includedSection.left}px`, top: `${BUDGET_STRUCTURE_LAYOUT.includedSection.top + 64}px`, width: `${BUDGET_STRUCTURE_LAYOUT.includedSection.width}px` }}>
-          {includedItems && includedItems.length > 0 ? (
-            <ul className={styles.includedList}>
-              {includedItems.map((it) => (
-                <li key={it.id} className={styles.includedItem}>
-                  <span className={styles.check}>✓</span>
-                  <span className={styles.includedName}>{it.nome}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className={styles.noItems}>Nenhum item incluso</div>
           )}
         </div>
 
