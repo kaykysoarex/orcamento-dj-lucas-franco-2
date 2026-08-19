@@ -6,6 +6,7 @@ import PdfCoverPage from "./components/pdf/PdfCoverPage.jsx";
 import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import PdfBudgetStructurePage from "./components/pdf/PdfBudgetStructurePage.jsx";
+import PdfLightingEffectsPage from "./components/pdf/PdfLightingEffectsPage.jsx";
 import { PDF_ASSETS } from "./config/pdfAssets";
 import { CATEGORIAS_ITEM, PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
 import { assetPath } from "./utils/assetPath.js";
@@ -423,6 +424,15 @@ export default function OrcamentoApp() {
   })).filter((entry) => entry.itemCatalogo?.ativo);
 
   const selectedProposalItems = [...itensInclusos, ...packageItems, ...adicionaisItems];
+  const pdfSelectedItems = selectedProposalItems.map(({ itemOrcamento, itemCatalogo }) => ({
+    id: itemCatalogo.id,
+    nome: itemCatalogo.nome,
+    descricao: itemCatalogo.descricao,
+    categoria: itemCatalogo.categoria,
+    quantidade: itemOrcamento.quantidade,
+    imagem: itemCatalogo.imagem,
+    imagemFallback: itemCatalogo.imagemFallback,
+  }));
 
   const groupedProposalItems = CATEGORIAS_ITEM
     .map((categoria) => ({
@@ -819,7 +829,7 @@ export default function OrcamentoApp() {
           display: flex; flex-direction: column; gap: 16px;
         }
 
-        .obg-panel-editor, .obg-panel-preview { display: block; }
+        .obg-panel-editor, .obg-panel-preview { display: block; min-width: 0; }
 
         @media screen and (max-width: 859px) {
           .obg-shell[data-tab="editar"] .obg-panel-preview { display: none; }
@@ -1113,101 +1123,93 @@ export default function OrcamentoApp() {
         }
 
         @page { size: A4 portrait; margin: 0; }
-        /* Preview (screen) vs Print separation */
+
+        /* The wrapper alone scales previews; every inner page stays 1055 × 1491. */
         .pdf-preview-viewport {
-          width: 100%;
-          max-width: 100%;
-          padding: 8px;
-          margin: 0 auto;
-          box-sizing: border-box;
-          overflow-x: hidden;
+          width: 100%; max-width: 100%; margin: 0 auto; padding: 8px;
+          overflow-x: hidden; box-sizing: border-box;
+        }
+        .pdf-pages-container {
+          display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+          width: 100%; min-width: 0; margin: 0; padding: 0;
+        }
+        .pdf-preview-item {
+          display: flex; justify-content: center; width: 100%; min-width: 0;
+          margin: 0; padding: 0; box-sizing: border-box;
+        }
+        .pdf-page-scaler {
+          position: relative; flex: 0 0 auto; overflow: hidden; background: #191a1e;
+          border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.16);
+        }
+        .pdf-page {
+          position: relative; width: 1055px; height: 1491px; margin: 0; padding: 0;
+          overflow: hidden; box-sizing: border-box; isolation: isolate; transform-origin: top left; background: #191a1e;
+        }
+        .pdf-page--full-bleed { background: #191a1e; }
+        .pdf-page-image {
+          display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: 0;
+          object-fit: cover; object-position: center;
         }
 
-        @media screen {
-          .pdf-page--full-bleed {
-            position: relative;
-            width: 100%;
-            max-width: 794px;
-            min-width: 0;
-            height: auto;
-            aspect-ratio: 210 / 297;
-            margin: 0 auto 16px;
-            padding: 0;
-            overflow: hidden;
-            box-sizing: border-box;
-            background: #191a1e;
-            border-radius: 6px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.16);
-          }
-
-          .pdf-page__full-image {
-            position: absolute;
-            inset: 0;
-            display: block;
-            width: 100%;
-            height: 100%;
-            max-width: none;
-            max-height: none;
-            margin: 0;
-            padding: 0;
-            border: 0;
-            object-fit: cover;
-            object-position: center;
-          }
-
-          /* mobile adjustments */
-          @media (max-width: 600px) {
-            .pdf-preview-viewport { width: 100%; padding: 4px; overflow-x: hidden; }
-            .pdf-page--full-bleed { width: 100%; max-width: 100%; min-width: 0; height: auto; aspect-ratio: 210 / 297; margin: 0 auto 12px; border-radius: 0; box-shadow: none; }
-            .pdf-page--full-bleed, .pdf-preview-viewport { -webkit-overflow-scrolling: touch; }
-          }
+        @media screen and (max-width: 600px) {
+          .pdf-preview-viewport { padding: 6px; }
+          .pdf-pages-container { gap: 12px; }
+          .pdf-page-scaler { border-radius: 0; box-shadow: none; }
         }
 
         @media print {
-          html, body, #root { margin: 0 !important; padding: 0 !important; }
-          .obg-panel-editor, .obg-tabs, .obg-bottom-bar, .obg-header, .obg-actions-row { display: none !important; }
-          .obg-panel-preview { display: block !important; position: static !important; }
-          /* ensure only print area is visible */
+          html, body, #root {
+            width: 210mm !important; height: auto !important; margin: 0 !important;
+            padding: 0 !important; background: transparent !important;
+          }
+
+          .obg-header, .obg-tabs, .obg-panel-editor, .obg-bottom-bar,
+          .obg-actions-row, .obg-pdf-hint, .obg-card { display: none !important; }
+
+          .obg-shell, .obg-body, .obg-panel-preview, .obg-preview-wrap,
+          .pdf-preview-viewport, .pdf-pages-container, .obg-print-area {
+            position: static !important; display: block !important; width: 210mm !important;
+            min-width: 210mm !important; max-width: 210mm !important; margin: 0 !important;
+            padding: 0 !important; gap: 0 !important; overflow: visible !important;
+            background: transparent !important;
+          }
+
           body * { visibility: hidden; }
           .obg-print-area, .obg-print-area * { visibility: visible; }
-          .obg-print-area { position: absolute; left: 0; top: 0; width: 100%; }
 
-          /* Full-bleed A4 pages for print */
-          .pdf-page--full-bleed {
-            position: relative;
-            width: 210mm !important;
-            min-width: 210mm !important;
-            max-width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-            overflow: hidden;
-            background: #191a1e;
-            break-after: page;
-            page-break-after: always;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+          .pdf-preview-item {
+            position: relative !important; display: block !important; width: 210mm !important;
+            height: 297mm !important; min-width: 210mm !important; min-height: 297mm !important;
+            max-width: 210mm !important; max-height: 297mm !important; margin: 0 !important;
+            padding: 0 !important; overflow: hidden !important; box-sizing: border-box !important;
+            break-after: page !important; page-break-after: always !important;
+            break-inside: avoid !important; page-break-inside: avoid !important;
+          }
+          .pdf-preview-item:last-child { break-after: auto !important; page-break-after: auto !important; }
+
+          .pdf-page-scaler {
+            position: relative !important; display: block !important; width: 210mm !important;
+            height: 297mm !important; margin: 0 !important; padding: 0 !important;
+            overflow: hidden !important; border: 0 !important; border-radius: 0 !important;
+            box-shadow: none !important; transform: none !important;
           }
 
-          .pdf-page__full-image {
-            position: absolute;
-            inset: 0;
-            display: block;
-            width: 100% !important;
-            height: 100% !important;
-            max-width: none !important;
-            max-height: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-            object-fit: cover;
-            object-position: center;
+          /* 210 mm equals 793.701 CSS pixels. Scale only the fixed canvas,
+             never individual text, images or absolute-positioned elements. */
+          .pdf-page {
+            position: relative !important; display: block !important; width: 1055px !important;
+            height: 1491px !important; min-width: 1055px !important; min-height: 1491px !important;
+            max-width: 1055px !important; max-height: 1491px !important; margin: 0 !important;
+            padding: 0 !important; overflow: hidden !important; box-sizing: border-box !important;
+            transform: scale(0.752323) !important; transform-origin: top left !important;
+            print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important;
           }
-
-          .obg-card { border-radius: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .pdf-page-image {
+            display: block !important; width: 100% !important; height: 100% !important;
+            max-width: none !important; max-height: none !important; margin: 0 !important;
+            padding: 0 !important; border: 0 !important; object-fit: cover !important;
+            object-position: center !important;
+          }
         }
       `}</style>
 
@@ -1546,7 +1548,7 @@ export default function OrcamentoApp() {
             )}
 
             <div className="pdf-preview-viewport">
-              <div className="obg-print-area">
+              <div className="obg-print-area pdf-pages-container">
                 <PdfCoverPage />
                 <PdfBiographyPage />
                 <PdfBudgetDataPage
@@ -1566,6 +1568,8 @@ export default function OrcamentoApp() {
                     }).filter(Boolean)}
                   />
                 )}
+
+                <PdfLightingEffectsPage items={pdfSelectedItems} />
 
                 <div className="obg-card">
                 <div className="brand">

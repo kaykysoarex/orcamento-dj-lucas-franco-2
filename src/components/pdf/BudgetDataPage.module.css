@@ -1,4 +1,4 @@
-/* Styles for the BudgetDataPage component — page surface is 1055x1491 design */
+/* Coordinates in this file are always relative to the 1055 × 1491 design canvas. */
 :root {
   --bg: #07090B;
   --gold: rgba(185,135,45,0.85);
@@ -7,33 +7,18 @@
   --ink-light: #F2EEE6;
 }
 
-.container {
-  /* viewport: visible area that will receive the single scale */
-  position: relative;
-  width: 100%;
-  max-width: 900px;
-  aspect-ratio: 1055 / 1491;
-  overflow: hidden;
-  isolation: isolate; /* create new stacking context */
-}
-
 .page {
-  /* design surface placed at top-left and scaled once by --page-scale */
   position: absolute;
   top: 0;
   left: 0;
   width: 1055px;
   height: 1491px;
-  transform-origin: top left;
-  transform: scale(var(--page-scale, 1));
   overflow: hidden;
   isolation: isolate;
-  /* robust background: gradient + radial vignette */
   background:
     radial-gradient(circle at 55% 35%, rgba(28,31,35,0.35), transparent 48%),
     linear-gradient(180deg, #0a0c0f 0%, #050607 100%);
   z-index: 0;
-  outline: 2px solid rgba(255,0,0,0.6); /* diagnostic - remove after validation */
 }
 
 /* texture layer separate */
@@ -95,7 +80,7 @@
 /* Title */
 .title {
   position: absolute;
-  z-index: 4;
+  z-index: 5;
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 82px;
   font-weight: 400;
@@ -105,8 +90,10 @@
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
+  max-width: 600px;
+  overflow-wrap: anywhere;
 }
-.title div { display: block; }
+.title div { display: block; white-space: nowrap; }
 .titleLine {
   height: 2px;
   background: var(--gold-soft);
@@ -132,12 +119,13 @@
 /* DJ photo (new - used by BudgetDataPage) */
 .dj {
   position: absolute;
-  z-index: 3;
-  height: 1250px;
-  width: auto;
-  right: -110px;
-  bottom: 55px;
+  z-index: 4;
+  height: auto;
+  max-width: none;
+  right: auto;
+  bottom: auto;
   object-fit: contain;
+  object-position: top left;
   pointer-events: none;
 }
 
@@ -164,6 +152,7 @@
 .field {
   position: absolute;
   display: block;
+  z-index: 5;
 }
 
 .label {
@@ -188,7 +177,8 @@
   letter-spacing: 0.2px;
   color: #f1eee7;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -203,15 +193,7 @@
   bottom: 8px;
 }
 
-/* Printing rules */
-.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-
-@page {
-  size: A4 portrait;
-  margin: 0;
-}
-
-@media print {
-  .page { transform: none !important; }
-  .texture { opacity: 0.12; }
+.pageSurface, .page {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }

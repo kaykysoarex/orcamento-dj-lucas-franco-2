@@ -17,7 +17,7 @@ export const BUDGET_DATA_LAYOUT = {
   title: {
     left: 95,
     top: 245,
-    width: 490,
+    width: 600,
   },
 
   fields: {
@@ -49,9 +49,11 @@ export const BUDGET_DATA_LAYOUT = {
   },
 
   dj: {
-    left: 525,
+    // The transparent portrait uses a larger box than its visible silhouette.
+    // These are the original composition coordinates from the A4 artwork.
+    left: 332,
     top: 185,
-    width: 500,
+    width: 833,
   },
 
   logo: {

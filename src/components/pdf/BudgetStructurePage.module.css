@@ -1,4 +1,4 @@
-/* Styles for BudgetStructurePage (design surface 1055x1491) */
+/* Coordinates in this file are always relative to the 1055 × 1491 design canvas. */
 :root{
   --bg: #07090B;
   --gold: #c99435;
@@ -6,20 +6,11 @@
   --ink-light: #F2EEE6;
 }
 
-.container{
-  position: relative;
-  width: 100%;
-  max-width: 900px;
-  aspect-ratio: 1055 / 1491;
-  overflow: hidden;
-}
-
 .page{
   position: absolute;
   top:0; left:0;
   width:1055px; height:1491px;
-  transform-origin: top left;
-  transform: scale(var(--page-scale,1));
+  overflow:hidden;
   background: linear-gradient(180deg,#07090B 0%, #040506 100%);
 }
 
@@ -41,7 +32,7 @@
 
 /* Photo expanded */
 .photoWrap{ position:absolute; left:62px; top:335px; width:931px; height:640px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-.photo{ width:100%; height:100%; object-fit:contain; object-position:center; border:2px solid rgba(185,135,45,0.65); box-sizing:border-box; }
+.photo{ width:100%; height:100%; object-fit:cover; object-position:center center; border:2px solid rgba(185,135,45,0.65); box-sizing:border-box; }
 .photoPlaceholder{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:2px dashed rgba(255,255,255,0.04); color:var(--ink-light); }
 .photoPlaceholderInner{ font-family: Montserrat, Arial, sans-serif; font-size:16px; color: rgba(242,238,230,0.6); }
 
@@ -59,9 +50,8 @@
 .logoContainer{ position:absolute; left:0; right:0; bottom:45px; display:flex; justify-content:center; align-items:center; z-index:3; }
 .logo{ width:280px; height:auto; object-fit:contain; }
 
-.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-
-@page{ size:A4 portrait; margin:0; }
-
-@media print{ .page { transform: none !important; } .texture{ opacity:0.12 } }
+.pageSurface, .page {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
 

@@ -1,10 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { BUDGET_STRUCTURE_LAYOUT } from "../../pdf/layouts/budgetStructureLayout";
 import { PDF_ASSETS } from "../../config/pdfAssets";
+import PdfPage from "./PdfPage.jsx";
 import styles from "./BudgetStructurePage.module.css";
-
-const DESIGN_WIDTH_PX = 1055;
-const DESIGN_HEIGHT_PX = 1491;
 
 type StructureType = {
   id: string;
@@ -23,33 +21,7 @@ type Props = {
 };
 
 export default function BudgetStructurePage({ structure, includedItems = [], mode = "preview" }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [pageScale, setPageScale] = useState(1);
-  const [fontsReady, setFontsReady] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    (document as any).fonts?.ready?.then(() => setFontsReady(true)).catch(() => setFontsReady(true));
-  }, []);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      const width = el.clientWidth ?? 0;
-      if (width > 0) {
-        const nextScale = width / DESIGN_WIDTH_PX;
-        if (Number.isFinite(nextScale) && nextScale > 0) setPageScale(nextScale);
-      }
-    };
-    update();
-    if (typeof ResizeObserver !== "undefined") {
-      const ro = new ResizeObserver(update);
-      ro.observe(el);
-      return () => ro.disconnect();
-    }
-  }, []);
 
   if (!structure) return null;
 
@@ -57,8 +29,7 @@ export default function BudgetStructurePage({ structure, includedItems = [], mod
   const structureName = (structure.nome || structure.name || "").toString();
 
   return (
-    <div ref={containerRef} className={styles.container} style={{ "--page-scale": pageScale } as React.CSSProperties}>
-      <div className={`${styles.page} ${styles.pageSurface}`}>
+    <PdfPage ariaLabel="Estrutura Selecionada" pageClassName={`${styles.page} ${styles.pageSurface}`}>
         <div className={styles.texture} aria-hidden="true" />
         <div className={styles.frame} />
 
@@ -143,7 +114,6 @@ export default function BudgetStructurePage({ structure, includedItems = [], mod
         <div className={styles.logoContainer} style={{ left: 0, right: 0, bottom: 8 }}>
           <img src={PDF_ASSETS.budgetData.logo} alt="Lucas Franco" className={styles.logo} />
         </div>
-      </div>
-    </div>
+    </PdfPage>
   );
 }

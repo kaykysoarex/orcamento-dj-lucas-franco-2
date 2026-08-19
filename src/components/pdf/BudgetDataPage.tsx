@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { PDF_ASSETS } from "../../config/pdfAssets";
 import { BUDGET_DATA_LAYOUT } from "../../pdf/layouts/budgetDataLayout";
 import { formatEventDate } from "../../pdf/utils/formatEventDate";
+import PdfPage from "./PdfPage.jsx";
 import styles from "./BudgetDataPage.module.css";
-
-const DESIGN_WIDTH_PX = 1055;
-const DESIGN_HEIGHT_PX = 1491;
 
 type BudgetDataPageProps = {
   clientName: string;
@@ -67,13 +65,11 @@ function BudgetDataField({
   value,
   showLine,
   fieldKey,
-  scale,
 }: {
   label: string;
   value: string;
   showLine: boolean;
   fieldKey: keyof typeof BUDGET_DATA_LAYOUT.fields;
-  scale: number;
 }) {
   const fieldConfig = BUDGET_DATA_LAYOUT.fields[fieldKey];
   const contentWidth = BUDGET_DATA_LAYOUT.content.width;
@@ -138,14 +134,10 @@ export default function BudgetDataPage({
   showDuration,
   mode = "preview",
 }: BudgetDataPageProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [pageScale, setPageScale] = useState(1);
   const [fontsReady, setFontsReady] = useState(false);
 
-  // Wait for fonts to load
   useEffect(() => {
     if (typeof document === "undefined") return;
-
     const checkFonts = async () => {
       try {
         await (document as any).fonts.ready;
@@ -154,38 +146,9 @@ export default function BudgetDataPage({
         setFontsReady(true);
       }
     };
-
     checkFonts();
   }, []);
 
-  // Measure container width
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const updateWidth = () => {
-      const width = el.clientWidth ?? 0;
-      if (width > 0) {
-        const nextScale = width / DESIGN_WIDTH_PX;
-        if (Number.isFinite(nextScale) && nextScale > 0) {
-          setPageScale(nextScale);
-        }
-      }
-    };
-
-    updateWidth();
-
-    // ResizeObserver for responsive updates
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(updateWidth);
-      observer.observe(el);
-      return () => observer.disconnect();
-    }
-  }, []);
-
-  const scale = pageScale;
-
-  // Formatted values
   const formattedDate = formatEventDate(eventDate);
   const safeClientName = typeof clientName === "string" ? clientName.trim() : "";
   const safeLocation = typeof location === "string" ? location.trim() : "";
@@ -193,15 +156,7 @@ export default function BudgetDataPage({
   const safeShowDuration = typeof showDuration === "string" ? showDuration.trim() : "";
 
   return (
-    <div
-      ref={containerRef}
-      className={styles.container}
-      style={{
-        "--page-scale": pageScale,
-      } as React.CSSProperties}
-    >
-      {/* Page surface (A4) */}
-      <div className={`${styles.page} ${styles.pageSurface}`}>
+    <PdfPage ariaLabel="Dados do Orçamento" pageClassName={`${styles.page} ${styles.pageSurface}`}>
         {/* Texture layer (separate) */}
         <div
           className={styles.texture}
@@ -263,6 +218,11 @@ export default function BudgetDataPage({
         className={styles.dj}
         alt=""
         aria-hidden="true"
+        style={{
+          left: `${BUDGET_DATA_LAYOUT.dj.left}px`,
+          top: `${BUDGET_DATA_LAYOUT.dj.top}px`,
+          width: `${BUDGET_DATA_LAYOUT.dj.width}px`,
+        }}
       />
 
       {/* Fields */}
@@ -273,39 +233,43 @@ export default function BudgetDataPage({
             value={safeEventType}
             showLine={true}
             fieldKey="eventType"
-            scale={scale}
           />
           <BudgetDataField
             label="LOCAL"
             value={safeLocation}
             showLine={true}
             fieldKey="location"
-            scale={scale}
           />
           <BudgetDataField
             label="DATA"
             value={formattedDate}
             showLine={true}
             fieldKey="eventDate"
-            scale={scale}
           />
           <BudgetDataField
             label="DURAÇÃO DO SHOW"
             value={safeShowDuration}
             showLine={true}
             fieldKey="showDuration"
-            scale={scale}
           />
           <BudgetDataField
             label="CLIENTE"
             value={safeClientName}
             showLine={true}
             fieldKey="clientName"
-            scale={scale}
           />
         </>
       )}
-      </div> {/* end .page surface */}
-    </div>
+      <img
+        src={PDF_ASSETS.budgetData.logo}
+        className={styles.logo}
+        alt="Lucas Franco"
+        style={{
+          left: `${BUDGET_DATA_LAYOUT.logo.left}px`,
+          bottom: `${BUDGET_DATA_LAYOUT.logo.bottom}px`,
+          width: `${BUDGET_DATA_LAYOUT.logo.width}px`,
+        }}
+      />
+    </PdfPage>
   );
 }
