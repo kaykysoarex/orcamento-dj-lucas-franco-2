@@ -79,7 +79,7 @@ async function fillBudgetValue(page, value) {
 async function inspectPreview(page) {
   return page.evaluate(() => {
     const viewport = document.querySelector(".pdf-preview-viewport");
-    const items = [...document.querySelectorAll(".pdf-preview-item")];
+    const items = [...document.querySelectorAll(".obg-print-area .pdf-preview-item")];
     return {
       viewportWidth: viewport?.getBoundingClientRect().width || 0,
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,

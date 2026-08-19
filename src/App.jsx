@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Plus, X, Copy, Printer, Check, Music2, CalendarDays, User, MapPin, MessageSquareText, ImagePlus, Save } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Plus, X, Printer, Check, Music2, CalendarDays, User, MapPin, MessageSquareText, MessageCircle, ImagePlus, LoaderCircle } from "lucide-react";
 import SeletorEstruturas from "./components/SeletorEstruturas.jsx";
 import PdfCoverPage from "./components/pdf/PdfCoverPage.jsx";
 import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
@@ -11,6 +11,12 @@ import { PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/c
 import { buildProposalPdfCategories } from "./pdf/utils/proposalCategories.js";
 import { assetPath } from "./utils/assetPath.js";
 import { formatBudgetValue, formatBudgetValueInput, normalizeBudgetValueInCents, parseBudgetValueInput } from "./utils/budgetValue.js";
+import {
+  buildWhatsAppMessage,
+  downloadProposalPdfFile,
+  generateProposalPdfFile,
+  waitForProposalAssets,
+} from "./utils/proposalPdf.js";
 
 const STORAGE_KEY = "lucas-franco-custom-packages-v2";
 const EQUIPMENT_KEY = "lucas-franco-equipment-v3";
@@ -274,22 +280,31 @@ export default function OrcamentoApp() {
   const [paymentTerms, setPaymentTerms] = useState(DEFAULT_PAYMENT_TERMS);
   const [showPaymentTerms, setShowPaymentTerms] = useState(true);
   const [proposalNumber, setProposalNumber] = useState(null);
-  const [copyState, setCopyState] = useState("idle"); // idle | copied
   const [savedProposals, setSavedProposals] = useState([]);
   const [currentProposalId, setCurrentProposalId] = useState(null);
-  const [saveProposalState, setSaveProposalState] = useState("idle"); // idle | saved
   const [structureMode, setStructureMode] = useState(""); // '' | 'none' | 'with_structure' — start unselected
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [pdfActionState, setPdfActionState] = useState("idle"); // idle | printing | generating
+  const [pdfNotice, setPdfNotice] = useState("");
+  const [pdfProgress, setPdfProgress] = useState(null);
+  const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
   const saveTimer = useRef(null);
   const savePaymentTimer = useRef(null);
   const saveBudgetValueTimer = useRef(null);
+  const saveProposalTimer = useRef(null);
+  const savedProposalsRef = useRef([]);
+  const restoredProposalIdRef = useRef(null);
+  const proposalPdfCacheRef = useRef({ fingerprint: null, file: null });
+  const pdfGenerationRef = useRef(null);
+  const pdfExportRootRef = useRef(null);
 
   // When editing a saved proposal, restore form fields so preview and PDF show the same values
   useEffect(() => {
-    if (!currentProposalId) return;
+    if (!currentProposalId || restoredProposalIdRef.current === currentProposalId) return;
     const proposal = savedProposals.find((p) => p.id === currentProposalId);
     if (!proposal) return;
+    restoredProposalIdRef.current = currentProposalId;
     // only restore the client-related fields required for the PDF page
     setClientName(proposal.clientName || "");
     setEventDate(proposal.eventDate || "");
@@ -321,6 +336,10 @@ export default function OrcamentoApp() {
 
     // do not write into the PNG — these are just form states
   }, [currentProposalId, savedProposals]);
+
+  useEffect(() => {
+    savedProposalsRef.current = savedProposals;
+  }, [savedProposals]);
 
   // Load persisted packages + proposal counter on mount
   useEffect(() => {
@@ -417,6 +436,10 @@ export default function OrcamentoApp() {
   const total = basePrice + extraItemsTotal + equipamentosAdicionaisTotal;
   const validUntil = formatDatePt(addDays(new Date(), 7));
   const clientDetailsComplete = Boolean(clientName.trim() && eventDate && eventLocal.trim());
+  const pdfActionBusy = pdfActionState !== "idle";
+  const actionButtonLabel = pdfProgress
+    ? `Página ${pdfProgress.current} de ${pdfProgress.total}`
+    : "Preparando PDF...";
   const normalizedEquipmentSearch = equipmentSearch.trim().toLocaleLowerCase("pt-BR");
   const filteredEquipment = completeCatalog.filter((equipment) =>
     equipment.nome.toLocaleLowerCase("pt-BR").includes(normalizedEquipmentSearch)
@@ -453,6 +476,83 @@ export default function OrcamentoApp() {
     manualItems: [...(proposalPkg?.items || []), ...equipamentosAdicionais],
     resolveItem: (itemId) => buscarItemPorId(itemId) || customEquipment.find((item) => item.id === itemId),
   });
+  const proposalPdfFingerprint = useMemo(() => JSON.stringify({
+    proposalNumber,
+    clientName,
+    eventDate,
+    eventLocal,
+    eventType,
+    showDuration,
+    notes,
+    structureMode,
+    estruturaSelecionadaId,
+    selectedPkgId,
+    packages,
+    estruturas,
+    customEquipment,
+    equipamentosAdicionais,
+    extraItems,
+    paymentTerms,
+    showPaymentTerms,
+    budgetValueInCents,
+  }), [
+    proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, notes,
+    structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas, customEquipment,
+    equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
+  ]);
+
+  useEffect(() => {
+    proposalPdfCacheRef.current = { fingerprint: null, file: null };
+  }, [proposalPdfFingerprint]);
+
+  useEffect(() => {
+    if (activeTab !== "previa") return undefined;
+    const root = pdfExportRootRef.current;
+    if (!root) return undefined;
+    waitForProposalAssets(root).catch((error) => {
+      if (import.meta.env.DEV) console.warn("Não foi possível pré-carregar os assets do PDF", error);
+    });
+    return undefined;
+  }, [activeTab, proposalPdfFingerprint]);
+
+  useEffect(() => {
+    if (activeTab !== "previa" || !clientDetailsComplete || !estruturaSelecionadaId) return undefined;
+    if (proposalPdfCacheRef.current.fingerprint === proposalPdfFingerprint || pdfGenerationRef.current) return undefined;
+
+    let cancelled = false;
+    let idleId;
+    const prepare = () => {
+      if (cancelled || pdfGenerationRef.current) return;
+      getProposalPdfFile().catch((error) => {
+        if (import.meta.env.DEV) console.warn("Não foi possível preparar o PDF em segundo plano", error);
+      });
+    };
+    const timeout = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(prepare, { timeout: 2500 });
+      } else {
+        prepare();
+      }
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      if (idleId !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
+    };
+  }, [activeTab, clientDetailsComplete, estruturaSelecionadaId, proposalPdfFingerprint]);
+
+  useEffect(() => {
+    if (!loaded || proposalNumber === null) return undefined;
+    if (saveProposalTimer.current) clearTimeout(saveProposalTimer.current);
+    saveProposalTimer.current = setTimeout(() => saveCurrentProposal({ silent: true }), 650);
+    return () => clearTimeout(saveProposalTimer.current);
+  }, [
+    loaded, proposalNumber, currentProposalId, clientName, eventDate, eventLocal, eventType,
+    showDuration, notes, structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas,
+    customEquipment, equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms,
+    budgetValueInCents, priceOverride, selectedItemIds,
+  ]);
 
   function selectPackage(id) {
     setSelectedPkgId(id);
@@ -628,12 +728,12 @@ export default function OrcamentoApp() {
     setExtraItems((prev) => prev.filter((it) => it.id !== id));
   }
 
-  function saveCurrentProposal() {
+  function saveCurrentProposal({ silent = false } = {}) {
     const isNewProposal = !currentProposalId;
     const storedCounter = Number.parseInt(loadText(COUNTER_KEY, "0"), 10) || 0;
     const number = proposalNumber || storedCounter + 1;
     const existingProposal = currentProposalId
-      ? savedProposals.find((proposal) => proposal.id === currentProposalId)
+      ? savedProposalsRef.current.find((proposal) => proposal.id === currentProposalId)
       : null;
     const snapshot = {
       id: currentProposalId || uid(),
@@ -669,18 +769,18 @@ export default function OrcamentoApp() {
       budgetValueInCents,
       total,
     };
-    const idx = savedProposals.findIndex((proposal) => proposal.id === snapshot.id);
+    const idx = savedProposalsRef.current.findIndex((proposal) => proposal.id === snapshot.id);
     const next = idx >= 0
-      ? savedProposals.map((proposal, index) => (index === idx ? snapshot : proposal))
-      : [snapshot, ...savedProposals];
+      ? savedProposalsRef.current.map((proposal, index) => (index === idx ? snapshot : proposal))
+      : [snapshot, ...savedProposalsRef.current];
     const saved = saveJSON(PROPOSALS_KEY, next);
     const counterSaved = !isNewProposal || saveText(COUNTER_KEY, String(number));
+    savedProposalsRef.current = next;
     setSavedProposals(next);
     setCurrentProposalId(snapshot.id);
     setProposalNumber(number);
-    setSaveProposalState(saved && counterSaved ? "saved" : "error");
     if (!saved || !counterSaved) setSaveState("error");
-    setTimeout(() => setSaveProposalState("idle"), 1800);
+    else if (!silent) setSaveState("saved");
   }
 
   function newProposal() {
@@ -697,6 +797,7 @@ export default function OrcamentoApp() {
     setExtraItems([]);
     setPriceOverride(null);
     setCurrentProposalId(null);
+    restoredProposalIdRef.current = null;
     const storedCounter = Number.parseInt(loadText(COUNTER_KEY, "0"), 10) || 0;
     const highestSavedNumber = savedProposals.reduce(
       (highest, proposal) => Math.max(highest, Number(proposal.number) || 0),
@@ -705,29 +806,7 @@ export default function OrcamentoApp() {
     setProposalNumber(Math.max(storedCounter, highestSavedNumber) + 1);
   }
 
-  async function waitForPrintImages() {
-    for (let pass = 0; pass < 2; pass += 1) {
-      const images = Array.from(document.querySelectorAll(".obg-print-area img"));
-      images.forEach((image) => { image.loading = "eager"; });
-      await Promise.all(images.map((image) => new Promise((resolve) => {
-        const finish = async () => {
-          if (typeof image.decode === "function") {
-            try { await image.decode(); } catch (error) { /* asset ausente não bloqueia a impressão */ }
-          }
-          resolve();
-        };
-        if (image.complete) finish();
-        else {
-          image.addEventListener("load", finish, { once: true });
-          image.addEventListener("error", finish, { once: true });
-        }
-      })));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-    await document.fonts?.ready;
-  }
-
-  async function handlePrint() {
+  function validateProposalAction() {
     if (!validateClientDetails()) {
       setActiveTab("editar");
       window.setTimeout(() => {
@@ -737,7 +816,7 @@ export default function OrcamentoApp() {
           firstError.focus({ preventScroll: true });
         }
       }, 0);
-      return;
+      return false;
     }
     if (!estruturaSelecionadaId) {
       setActiveTab("editar");
@@ -746,52 +825,159 @@ export default function OrcamentoApp() {
         if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       }, 0);
       alert('Selecione uma estrutura antes de gerar o PDF.');
-      return;
+      return false;
     }
-    await waitForPrintImages();
-    window.print();
+    return true;
   }
 
-  async function handleCopyWhatsApp() {
-    const lines = [];
-    lines.push(`*Proposta DJ Lucas Franco* — Nº ${String(proposalNumber || 1).padStart(4, "0")}`);
-    if (clientName) lines.push(`Para: ${clientName}`);
-    if (eventType) lines.push(`Tipo de evento: ${eventType}`);
-    if (eventDate) lines.push(`Data do evento: ${formatDateBR(eventDate)}`);
-    if (showDuration) lines.push(`Duração: ${showDuration}`);
-    if (eventLocal) lines.push(`Local: ${eventLocal}`);
-    lines.push("");
-    lines.push(`*Estrutura ${proposalPkg?.name || "selecionada"}*`);
-    selectedProposalItems.forEach(({ itemOrcamento, itemCatalogo }) => {
-      const quantityLabel = itemOrcamento.quantidade > 1 ? `${itemOrcamento.quantidade}x ` : "";
-      lines.push(`✔ ${quantityLabel}${itemCatalogo.nome}`);
-    });
-    if (extraItems.length) {
-      lines.push("");
-      lines.push("*Itens adicionais*");
-      extraItems
-        .filter((it) => it.desc)
-        .forEach((it) => lines.push(`✔ ${it.desc} (+${formatBRL(it.price)})`));
+  async function getProposalPdfFile({ onProgress } = {}) {
+    const cached = proposalPdfCacheRef.current;
+    if (cached.file && cached.fingerprint === proposalPdfFingerprint) {
+      return { file: cached.file, fromCache: true };
     }
-    lines.push("");
-    lines.push(`*Valor total: ${budgetValueInCents > 0 ? formatBudgetValue(budgetValueInCents) : formatBRL(total)}*`);
-    lines.push(`Proposta válida até ${validUntil}`);
-    if (notes) {
-      lines.push("");
-      lines.push(notes);
-    }
-    if (showPaymentTerms && paymentTerms) {
-      lines.push("");
-      lines.push(`Forma de pagamento: ${paymentTerms}`);
-    }
-    const text = lines.join("\n");
+    if (pdfGenerationRef.current) return pdfGenerationRef.current;
+
+    const generation = (async () => {
+      const container = pdfExportRootRef.current;
+      const file = await generateProposalPdfFile({ container, clientName, onProgress });
+      proposalPdfCacheRef.current = { fingerprint: proposalPdfFingerprint, file };
+      return { file, fromCache: false };
+    })();
+    pdfGenerationRef.current = generation;
+
     try {
-      await navigator.clipboard.writeText(text);
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 2000);
-    } catch (e) {
-      setCopyState("idle");
+      return await generation;
+    } finally {
+      pdfGenerationRef.current = null;
     }
+  }
+
+  async function handlePrint() {
+    if (!validateProposalAction() || pdfActionState !== "idle") return;
+    setPdfNotice("");
+    setPdfProgress(null);
+    setPdfActionState("generating");
+    try {
+      await getProposalPdfFile({
+        onProgress: ({ current, total }) => {
+          setPdfProgress({ current, total });
+          setPdfNotice(`Preparando PDF — página ${current} de ${total}`);
+        },
+      });
+      setPdfNotice("");
+      setPdfActionState("printing");
+      await waitForProposalAssets(document.querySelector(".obg-print-area"));
+      window.print();
+    } catch (error) {
+      if (import.meta.env.DEV) console.error("Falha ao preparar o PDF para impressão", error);
+      setPdfNotice("Não foi possível gerar o PDF. Tente novamente.");
+    } finally {
+      setPdfProgress(null);
+      setPdfActionState("idle");
+    }
+  }
+
+  function downloadAndOfferWhatsApp(file) {
+    downloadProposalPdfFile(file);
+    setShareFallbackOpen(true);
+    setPdfNotice("O PDF foi baixado. Agora anexe o arquivo na conversa do WhatsApp.");
+  }
+
+  async function handleWhatsAppShare() {
+    if (!validateProposalAction() || pdfActionState !== "idle") return;
+    setPdfNotice("");
+    setPdfProgress(null);
+    setShareFallbackOpen(false);
+    setPdfActionState("generating");
+
+    let result;
+    try {
+      result = await getProposalPdfFile({
+        onProgress: ({ current, total }) => {
+          setPdfProgress({ current, total });
+          setPdfNotice(`Preparando PDF — página ${current} de ${total}`);
+        },
+      });
+    } catch (error) {
+      if (import.meta.env.DEV) console.error("Falha ao gerar PDF para compartilhamento", error);
+      setPdfNotice("Não foi possível gerar o PDF. Tente novamente.");
+      setPdfProgress(null);
+      setPdfActionState("idle");
+      return;
+    }
+
+    const shareData = {
+      files: [result.file],
+      title: "Proposta Lucas Franco — DJ",
+      text: buildWhatsAppMessage({ clientName }),
+    };
+    const canShareFile = typeof navigator.share === "function"
+      && typeof navigator.canShare === "function"
+      && navigator.canShare({ files: [result.file] });
+
+    if (!canShareFile) {
+      downloadAndOfferWhatsApp(result.file);
+      setPdfProgress(null);
+      setPdfActionState("idle");
+      return;
+    }
+
+    try {
+      setPdfProgress(null);
+      setPdfNotice("Abrindo compartilhamento...");
+      await navigator.share(shareData);
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      if (result.fromCache === false && ["NotAllowedError", "SecurityError"].includes(error?.name)) {
+        setPdfNotice("PDF pronto. Toque novamente para compartilhar.");
+        return;
+      }
+      if (import.meta.env.DEV) console.error("Falha ao compartilhar proposta", error);
+      downloadAndOfferWhatsApp(result.file);
+    } finally {
+      setPdfProgress(null);
+      setPdfActionState("idle");
+    }
+  }
+
+  function openWhatsAppFallback() {
+    const text = encodeURIComponent(buildWhatsAppMessage({ clientName }));
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    const url = isMobile ? `https://wa.me/?text=${text}` : `https://web.whatsapp.com/send?text=${text}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function renderProposalPages() {
+    return (
+      <>
+        <PdfCoverPage />
+        <PdfBiographyPage />
+        <PdfBudgetDataPage
+          eventType={eventType}
+          location={eventLocal}
+          eventDate={eventDate}
+          showDuration={showDuration}
+          clientName={clientName}
+        />
+
+        {structureMode === 'with_structure' && estruturaSelecionadaId && (
+          <PdfBudgetStructurePage structure={estruturaSelecionada} />
+        )}
+
+        <PdfProposalCategoryPages categories={pdfProposalCategories} />
+
+        {budgetValueInCents > 0 && (
+          <InvestmentPage
+            valueInCents={budgetValueInCents}
+            proposalNumber={proposalNumber}
+            clientName={clientName}
+            eventDate={formatDateBR(eventDate)}
+            eventLocation={eventLocal}
+            showPaymentTerms={showPaymentTerms}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -1047,10 +1233,20 @@ export default function OrcamentoApp() {
           padding: 12px; border-radius: 999px; font-size: 13.5px; font-weight: 700;
           border: none; cursor: pointer;
         }
+        .obg-actions-row button:disabled, .obg-bottom-bar button:disabled { cursor: wait; opacity: .58; }
+        .obg-spin { animation: obg-spin .8s linear infinite; }
+        @keyframes obg-spin { to { transform: rotate(360deg); } }
         .obg-btn-dark { background: var(--dark); color: var(--gold); }
         .obg-btn-dark:disabled { cursor: not-allowed; opacity: 0.52; }
         .obg-btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--line) !important; }
         .obg-pdf-hint { margin: -4px 0 0; color: #9a5a33; font-size: 11px; font-weight: 600; text-align: center; }
+        .obg-action-notice { margin: -4px 0 0; color: var(--ink-soft); font-size: 12px; font-weight: 600; text-align: center; }
+        .obg-share-fallback { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 14, 12, .42); }
+        .obg-share-fallback-dialog { width: min(100%, 390px); border-radius: 16px; padding: 22px; background: #fff; box-shadow: 0 18px 52px rgba(0, 0, 0, .22); }
+        .obg-share-fallback-dialog h3 { margin: 0 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; }
+        .obg-share-fallback-dialog p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
+        .obg-share-fallback-actions { display: flex; gap: 8px; margin-top: 18px; }
+        .obg-share-fallback-actions button { flex: 1; min-height: 44px; border-radius: 999px; font-weight: 700; cursor: pointer; }
 
         .obg-card {
           background: var(--dark-card); color: var(--cream);
@@ -1188,6 +1384,14 @@ export default function OrcamentoApp() {
           display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: 0;
           object-fit: cover; object-position: center;
         }
+        .pdf-export-root {
+          position: fixed; top: 0; left: -20000px; z-index: -1; width: 1055px;
+          pointer-events: none; overflow: visible;
+        }
+        .pdf-export-root .pdf-pages-container { display: block; width: 1055px; margin: 0; padding: 0; }
+        .pdf-export-root .pdf-preview-item { display: block; width: 1055px; height: 1491px; margin: 0; padding: 0; }
+        .pdf-export-root .pdf-page-scaler { width: 1055px !important; height: 1491px !important; overflow: visible; border-radius: 0; box-shadow: none; }
+        .pdf-export-root .pdf-page { width: 1055px !important; height: 1491px !important; max-width: none !important; transform: none !important; }
 
         @media screen and (max-width: 600px) {
           .pdf-preview-viewport { padding: 6px; }
@@ -1202,7 +1406,7 @@ export default function OrcamentoApp() {
           }
 
           .obg-header, .obg-tabs, .obg-panel-editor, .obg-bottom-bar,
-          .obg-actions-row, .obg-pdf-hint, .obg-card { display: none !important; }
+          .obg-actions-row, .obg-pdf-hint, .obg-card, .pdf-export-root { display: none !important; }
 
           .obg-shell, .obg-body, .obg-panel-preview, .obg-preview-wrap,
           .pdf-preview-viewport, .pdf-pages-container, .obg-print-area {
@@ -1585,58 +1789,36 @@ export default function OrcamentoApp() {
         <div className="obg-panel-preview">
           <div className="obg-preview-wrap">
             <div className="obg-actions-row">
-              <button className="obg-btn-outline" onClick={saveCurrentProposal}>
-                {saveProposalState === "saved" ? <Check size={15} /> : <Save size={15} />}
-                {saveProposalState === "saved"
-                  ? "Salvo!"
-                  : saveProposalState === "error"
-                    ? "Não salvo"
-                    : (currentProposalId ? "Atualizar" : "Salvar")}
-              </button>
-              <button className="obg-btn-outline" onClick={handleCopyWhatsApp}>
-                {copyState === "copied" ? <Check size={15} /> : <Copy size={15} />}
-                {copyState === "copied" ? "Copiado!" : "WhatsApp"}
+              <button
+                type="button"
+                className="obg-btn-outline"
+                onClick={handleWhatsAppShare}
+                disabled={pdfActionBusy}
+                aria-label="Compartilhar proposta pelo WhatsApp"
+              >
+                {pdfActionBusy ? <LoaderCircle size={15} className="obg-spin" /> : <MessageCircle size={15} color="#25d366" />}
+                {pdfActionBusy ? actionButtonLabel : "WhatsApp"}
               </button>
               <button
+                type="button"
                 className="obg-btn-dark"
                 onClick={handlePrint}
+                disabled={pdfActionBusy}
+                aria-label="Abrir ou baixar proposta em PDF"
                 title={clientDetailsComplete ? "Gerar PDF" : "Preencha nome, data e local do evento para gerar o PDF"}
               >
-                <Printer size={15} /> PDF
+                {pdfActionBusy ? <LoaderCircle size={15} className="obg-spin" /> : <Printer size={15} />}
+                {pdfActionBusy ? actionButtonLabel : "PDF"}
               </button>
             </div>
             {!clientDetailsComplete && (
               <p className="obg-pdf-hint">Preencha nome, data e local do evento para liberar o PDF.</p>
             )}
+            {pdfNotice && <p className="obg-action-notice" role="status" aria-live="polite">{pdfNotice}</p>}
 
             <div className="pdf-preview-viewport">
               <div className="obg-print-area pdf-pages-container">
-                <PdfCoverPage />
-                <PdfBiographyPage />
-                <PdfBudgetDataPage
-                  eventType={eventType}
-                  location={eventLocal}
-                  eventDate={eventDate}
-                  showDuration={showDuration}
-                  clientName={clientName}
-                />
-
-                {structureMode === 'with_structure' && estruturaSelecionadaId && (
-                  <PdfBudgetStructurePage structure={estruturaSelecionada} />
-                )}
-
-                <PdfProposalCategoryPages categories={pdfProposalCategories} />
-
-                {budgetValueInCents > 0 && (
-                  <InvestmentPage
-                    valueInCents={budgetValueInCents}
-                    proposalNumber={proposalNumber}
-                    clientName={clientName}
-                    eventDate={formatDateBR(eventDate)}
-                    eventLocation={eventLocal}
-                    showPaymentTerms={showPaymentTerms}
-                  />
-                )}
+                {renderProposalPages()}
 
             </div>
           </div>
@@ -1645,27 +1827,48 @@ export default function OrcamentoApp() {
       </div>
       </div>
 
+      <div id="pdf-export-root" className="pdf-export-root" ref={pdfExportRootRef} aria-hidden="true">
+        <div className="pdf-pages-container">
+          {renderProposalPages()}
+        </div>
+      </div>
+
       <div className="obg-bottom-bar">
-        <button className="obg-btn-outline" onClick={saveCurrentProposal}>
-          {saveProposalState === "saved" ? <Check size={16} /> : <Save size={16} />}
-          {saveProposalState === "saved"
-            ? "Salvo"
-            : saveProposalState === "error"
-              ? "Não salvo"
-              : (currentProposalId ? "Atualizar" : "Salvar")}
-        </button>
-        <button className="obg-btn-outline" onClick={handleCopyWhatsApp}>
-          <MessageSquareText size={16} />
-          {copyState === "copied" ? "Copiado!" : "WhatsApp"}
+        <button
+          type="button"
+          className="obg-btn-outline"
+          onClick={handleWhatsAppShare}
+          disabled={pdfActionBusy}
+          aria-label="Compartilhar proposta pelo WhatsApp"
+        >
+          {pdfActionBusy ? <LoaderCircle size={16} className="obg-spin" /> : <MessageCircle size={16} color="#25d366" />}
+          {pdfActionBusy ? actionButtonLabel : "WhatsApp"}
         </button>
         <button
+          type="button"
           className="obg-btn-dark"
           onClick={handlePrint}
+          disabled={pdfActionBusy}
+          aria-label="Abrir ou baixar proposta em PDF"
           title={clientDetailsComplete ? "Gerar PDF" : "Preencha nome, data e local do evento para gerar o PDF"}
         >
-          <Printer size={16} /> PDF
+          {pdfActionBusy ? <LoaderCircle size={16} className="obg-spin" /> : <Printer size={16} />}
+          {pdfActionBusy ? actionButtonLabel : "PDF"}
         </button>
       </div>
+
+      {shareFallbackOpen && (
+        <div className="obg-share-fallback" role="presentation">
+          <div className="obg-share-fallback-dialog" role="dialog" aria-modal="true" aria-labelledby="share-fallback-title">
+            <h3 id="share-fallback-title">PDF baixado</h3>
+            <p>Seu navegador não permite enviar o arquivo diretamente. Abra o WhatsApp e anexe o PDF baixado.</p>
+            <div className="obg-share-fallback-actions">
+              <button type="button" className="obg-btn-dark" onClick={openWhatsAppFallback}>Abrir WhatsApp</button>
+              <button type="button" className="obg-btn-outline" onClick={() => setShareFallbackOpen(false)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
