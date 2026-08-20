@@ -6,10 +6,12 @@ import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import PdfBudgetStructurePage from "./components/pdf/PdfBudgetStructurePage.jsx";
 import PdfProposalCategoryPages from "./components/pdf/PdfProposalCategoryPages.jsx";
+import WeddingExperiencePage from "./components/pdf/WeddingExperiencePage.jsx";
 import InvestmentPage from "./components/pdf/InvestmentPage";
 import { PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
 import { buildProposalPdfCategories } from "./pdf/utils/proposalCategories.js";
 import { assetPath } from "./utils/assetPath.js";
+import { EXPERIENCE_URL } from "./config/experienceLink.js";
 import { formatBudgetValue, formatBudgetValueInput, normalizeBudgetValueInCents, parseBudgetValueInput } from "./utils/budgetValue.js";
 import {
   buildWhatsAppMessage,
@@ -495,10 +497,12 @@ export default function OrcamentoApp() {
     paymentTerms,
     showPaymentTerms,
     budgetValueInCents,
+    experienceUrl: EXPERIENCE_URL,
   }), [
     proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, notes,
     structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas, customEquipment,
     equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
+    EXPERIENCE_URL,
   ]);
 
   useEffect(() => {
@@ -967,14 +971,17 @@ export default function OrcamentoApp() {
         <PdfProposalCategoryPages categories={pdfProposalCategories} />
 
         {budgetValueInCents > 0 && (
-          <InvestmentPage
-            valueInCents={budgetValueInCents}
-            proposalNumber={proposalNumber}
-            clientName={clientName}
-            eventDate={formatDateBR(eventDate)}
-            eventLocation={eventLocal}
-            showPaymentTerms={showPaymentTerms}
-          />
+          <>
+            <WeddingExperiencePage />
+            <InvestmentPage
+              valueInCents={budgetValueInCents}
+              proposalNumber={proposalNumber}
+              clientName={clientName}
+              eventDate={formatDateBR(eventDate)}
+              eventLocation={eventLocal}
+              showPaymentTerms={showPaymentTerms}
+            />
+          </>
         )}
       </>
     );

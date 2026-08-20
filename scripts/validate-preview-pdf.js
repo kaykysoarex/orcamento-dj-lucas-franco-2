@@ -94,6 +94,13 @@ async function inspectPreview(page) {
           listItems: item.querySelectorAll("article").length,
           images: item.querySelectorAll("img").length,
         })),
+      experiencePages: items
+        .filter((item) => item.getAttribute("aria-label") === "Experiência de casamento")
+        .map((item) => ({
+          linkCount: item.querySelectorAll("a[data-pdf-link]").length,
+          photoIsLink: Boolean(item.querySelector("figure a")),
+          posterSource: item.querySelector("figure img")?.getAttribute("src") || "",
+        })),
       pageText: items.map((item) => item.textContent || ""),
       pages: items.map((item) => {
         const scaler = item.querySelector(".pdf-page-scaler");
@@ -162,6 +169,21 @@ function assertInvestmentPage(inspection, expectedValue, expectedDetails = {}) {
   }
 }
 
+function assertWeddingExperiencePage(inspection) {
+  const experienceIndex = inspection.pageLabels.indexOf("Experiência de casamento");
+  assert.equal(experienceIndex, inspection.pageLabels.length - 2, "Experiência de casamento deve ser a penúltima folha");
+  const experience = inspection.pages[experienceIndex];
+  const text = inspection.pageText[experienceIndex];
+  assert.equal(experience.pageWidth, 1055, "Experiência de casamento deve manter a largura de design");
+  assert.equal(experience.pageHeight, 1491, "Experiência de casamento deve manter a altura de design");
+  assert.match(text, /VIVA ESSA/, "Experiência deve mostrar a chamada principal");
+  assert.match(text, /ASSISTIR À EXPERIÊNCIA/, "Experiência deve mostrar o botão de ação");
+  const [experiencePage] = inspection.experiencePages;
+  assert.equal(experiencePage.linkCount, 2, "Somente botão e URL devem ser links na experiência");
+  assert.equal(experiencePage.photoIsLink, false, "A fotografia da experiência não pode ser clicável");
+  assert.match(experiencePage.posterSource, /experiencia-casamento-02-poster\.webp$/, "A segunda capa dos noivos deve ser usada");
+}
+
 const browser = await puppeteer.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] });
 try {
   const page = await browser.newPage();
@@ -186,6 +208,7 @@ try {
     date: "24/10/2026",
     location: "Espaço Aurora",
   });
+  assertWeddingExperiencePage(smallValue);
 
   await fillBudgetValue(page, "1.250.000,00");
   const largeValue = await inspectPreview(page);
@@ -194,6 +217,19 @@ try {
     date: "24/10/2026",
     location: "Espaço Aurora",
   });
+  assertWeddingExperiencePage(largeValue);
+
+  await page.setViewport({ width: 768, height: 1024, deviceScaleFactor: 1 });
+  await clickText(page, "Prévia");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const tablet = await inspectPreview(page);
+  assert.equal(tablet.horizontalOverflow, false, "tablet: a prévia não pode rolar horizontalmente");
+  assertInvestmentPage(tablet, "R$ 1.250.000,00", {
+    client: "Ana & João",
+    date: "24/10/2026",
+    location: "Espaço Aurora",
+  });
+  assertWeddingExperiencePage(tablet);
 
   await fillBudgetValue(page, "0");
 
@@ -212,7 +248,7 @@ try {
   assert.equal(continuation.horizontalOverflow, false, "continuação: a prévia não pode rolar horizontalmente");
   assert.deepEqual(
     continuation.pageLabels,
-    ["Capa do PDF", "Biografia do DJ", "Dados do Orçamento", "Estrutura Selecionada", "SOM E DJ", "ILUMINAÇÃO & EFEITOS", "ILUMINAÇÃO & EFEITOS — CONTINUAÇÃO", "Investimento"],
+    ["Capa do PDF", "Biografia do DJ", "Dados do Orçamento", "Estrutura Selecionada", "SOM E DJ", "ILUMINAÇÃO & EFEITOS", "ILUMINAÇÃO & EFEITOS — CONTINUAÇÃO", "Experiência de casamento", "Investimento"],
     "a página Investimento deve ser a última, depois das continuações"
   );
   assertCategoryContinuation(continuation);
@@ -221,6 +257,7 @@ try {
     date: "24/10/2026",
     location: "Espaço Aurora",
   });
+  assertWeddingExperiencePage(continuation);
   await (await page.$(".pdf-preview-viewport")).screenshot({ path: path.join(outputDirectory, "preview-continuation.png") });
 
   const longClient = "Ana Carolina de Almeida e João Pedro Monteiro";
@@ -232,6 +269,7 @@ try {
     date: "Não informado",
     location: longLocation,
   });
+  assertWeddingExperiencePage(missingDate);
   await (await page.$(".pdf-preview-viewport")).screenshot({ path: path.join(outputDirectory, "preview-investment-long-text.png") });
 
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
@@ -243,6 +281,7 @@ try {
     date: "Não informado",
     location: longLocation,
   });
+  assertWeddingExperiencePage(investmentMobile);
   const mobileInvestmentPage = investmentMobile.pages.at(-1);
   assert.ok(Math.abs(mobileInvestmentPage.itemWidth - mobileInvestmentPage.scalerWidth) < 1, "Investimento mobile deve recalcular a escala pelo container real");
   assert.ok(Math.abs((mobileInvestmentPage.itemWidth / mobileInvestmentPage.itemHeight) - (1055 / 1491)) < 0.002, "Investimento mobile deve preservar a proporção A4");
@@ -250,7 +289,7 @@ try {
 
   await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 });
   await page.pdf({ path: pdfPath, preferCSSPageSize: true, printBackground: true });
-  console.log(JSON.stringify({ desktop, zeroValue, smallValue, largeValue, mobile, continuation, missingDate, investmentMobile, pdfPath }, null, 2));
+  console.log(JSON.stringify({ desktop, zeroValue, smallValue, largeValue, tablet, mobile, continuation, missingDate, investmentMobile, pdfPath }, null, 2));
 } finally {
   await browser.close();
 }

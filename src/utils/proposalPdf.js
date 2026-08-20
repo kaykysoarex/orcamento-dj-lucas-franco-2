@@ -88,6 +88,23 @@ function isFullPageImage(page) {
   return image && page.children.length === 1 ? image : null;
 }
 
+function addPageLinkAnnotations(pdf, page) {
+  const pageBounds = page.getBoundingClientRect();
+  if (!pageBounds.width || !pageBounds.height) return;
+
+  page.querySelectorAll("a[data-pdf-link]").forEach((link) => {
+    const url = link.getAttribute("data-pdf-link");
+    const bounds = link.getBoundingClientRect();
+    if (!url || !bounds.width || !bounds.height) return;
+
+    const x = ((bounds.left - pageBounds.left) / pageBounds.width) * 210;
+    const y = ((bounds.top - pageBounds.top) / pageBounds.height) * 297;
+    const width = (bounds.width / pageBounds.width) * 210;
+    const height = (bounds.height / pageBounds.height) * 297;
+    pdf.link(x, y, width, height, { url });
+  });
+}
+
 async function renderPdfPage(page, pageId) {
   const stage = document.createElement("div");
   const pageClone = page.cloneNode(true);
@@ -172,6 +189,7 @@ export async function generateProposalPdfBlob({ container, onProgress } = {}) {
 
     if (index > 0) pdf.addPage("a4", "portrait");
     pdf.addImage(imageBytes, imageFormat, 0, 0, 210, 297, undefined, "MEDIUM");
+    addPageLinkAnnotations(pdf, page);
     onProgress?.({ current: index + 1, total: pages.length, elapsedMs: performance.now() - pageStartedAt });
     if (import.meta.env.DEV) console.info(`[proposal-pdf] Página ${index + 1}: ${Math.round(performance.now() - pageStartedAt)}ms`);
     imageBytes = null;
