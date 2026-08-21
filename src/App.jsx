@@ -287,7 +287,7 @@ export default function OrcamentoApp() {
   const [structureMode, setStructureMode] = useState(""); // '' | 'none' | 'with_structure' — start unselected
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [pdfActionState, setPdfActionState] = useState("idle"); // idle | printing | generating
+  const [pdfActionState, setPdfActionState] = useState("idle"); // idle | generating
   const [pdfNotice, setPdfNotice] = useState("");
   const [pdfProgress, setPdfProgress] = useState(null);
   const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
@@ -862,18 +862,16 @@ export default function OrcamentoApp() {
     setPdfProgress(null);
     setPdfActionState("generating");
     try {
-      await getProposalPdfFile({
+      const { file } = await getProposalPdfFile({
         onProgress: ({ current, total }) => {
           setPdfProgress({ current, total });
           setPdfNotice(`Preparando PDF — página ${current} de ${total}`);
         },
       });
-      setPdfNotice("");
-      setPdfActionState("printing");
-      await waitForProposalAssets(document.querySelector(".obg-print-area"));
-      window.print();
+      downloadProposalPdfFile(file);
+      setPdfNotice("PDF baixado com links clicáveis.");
     } catch (error) {
-      if (import.meta.env.DEV) console.error("Falha ao preparar o PDF para impressão", error);
+      if (import.meta.env.DEV) console.error("Falha ao preparar o PDF para download", error);
       setPdfNotice("Não foi possível gerar o PDF. Tente novamente.");
     } finally {
       setPdfProgress(null);
