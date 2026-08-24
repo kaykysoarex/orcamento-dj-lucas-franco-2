@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import puppeteer from "puppeteer";
 
-const baseUrl = process.env.BASE_URL || "http://127.0.0.1:4173/orcamento-dj-lucas-franco-2/";
+const baseUrl = process.env.BASE_URL || "http://127.0.0.1:4173/";
 const outputDirectory = path.resolve("tmp/pdfs");
 const pdfPath = path.join(outputDirectory, "preview-validation.pdf");
 

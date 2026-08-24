@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 
 (async () => {
-  const url = 'http://127.0.0.1:4174/orcamento-dj-lucas-franco/';
+  const url = 'http://127.0.0.1:4174/';
   const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
   const page = await browser.newPage();
   page.on('console', msg => console.log('PAGE_CONSOLE:', msg.type(), msg.text()));

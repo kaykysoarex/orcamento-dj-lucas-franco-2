@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 import fs from 'fs';
-const url = 'http://127.0.0.1:5176/orcamento-dj-lucas-franco/';
+const url = 'http://127.0.0.1:5176/';
 (async () => {
   const outDir = 'screenshots';
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
