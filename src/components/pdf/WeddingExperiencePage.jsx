@@ -4,8 +4,6 @@ import { EXPERIENCE_URL } from "../../config/experienceLink";
 import PdfPage from "./PdfPage.jsx";
 import styles from "./WeddingExperiencePage.module.css";
 
-const EXPERIENCE_URL_LABEL = EXPERIENCE_URL.replace(/^https:\/\//, "");
-
 export default function WeddingExperiencePage() {
   return (
     <PdfPage
@@ -50,21 +48,10 @@ export default function WeddingExperiencePage() {
           <span>ASSISTIR À EXPERIÊNCIA</span>
           <span className={styles.arrow} aria-hidden="true">↗</span>
         </a>
-        <a
-          className={styles.url}
-          href={EXPERIENCE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Abrir a experiência de casamento no site Lucas Franco"
-          data-pdf-link={EXPERIENCE_URL}
-        >
-          {EXPERIENCE_URL_LABEL}
-        </a>
       </main>
 
       <footer className={styles.footer}>
         <img src={PDF_ASSETS.budgetData.logo} alt="Lucas Franco" className={styles.logo} />
-        <p className={styles.closing}>A trilha sonora do seu momento.</p>
       </footer>
     </PdfPage>
   );

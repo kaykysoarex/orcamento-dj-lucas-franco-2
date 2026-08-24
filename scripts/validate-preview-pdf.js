@@ -179,7 +179,7 @@ function assertWeddingExperiencePage(inspection) {
   assert.match(text, /VIVA ESSA/, "Experiência deve mostrar a chamada principal");
   assert.match(text, /ASSISTIR À EXPERIÊNCIA/, "Experiência deve mostrar o botão de ação");
   const [experiencePage] = inspection.experiencePages;
-  assert.equal(experiencePage.linkCount, 2, "Somente botão e URL devem ser links na experiência");
+  assert.equal(experiencePage.linkCount, 1, "Somente o botão deve ser um link na experiência");
   assert.equal(experiencePage.photoIsLink, false, "A fotografia da experiência não pode ser clicável");
   assert.match(experiencePage.posterSource, /experiencia-casamento-02-poster\.webp$/, "A segunda capa dos noivos deve ser usada");
 }

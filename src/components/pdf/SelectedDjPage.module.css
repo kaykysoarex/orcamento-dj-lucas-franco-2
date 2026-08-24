@@ -7,12 +7,12 @@
 .eyebrow { margin: 0; color: rgba(212, 161, 66, .9); font-family: "Montserrat", Arial, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 4px; }
 .title { max-width: 720px; margin: 22px 0 0; color: #d4a142; font-family: "Cormorant Garamond", Georgia, serif; font-size: 72px; font-weight: 400; line-height: .88; letter-spacing: .5px; }
 .titleLine { width: 94px; height: 2px; margin-top: 23px; background: rgba(212, 161, 66, .7); }
-.photoFrame { width: 626px; height: 630px; margin: 38px 0 0; overflow: hidden; border: 1px solid rgba(212, 161, 66, .9); background: #101218; }
+.photoFrame { width: 500px; height: 680px; margin: 38px 0 0; overflow: hidden; border: 1px solid rgba(212, 161, 66, .9); background: #101218; }
 .photo { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .identity { display: flex; flex-direction: column; align-items: center; margin-top: 32px; }
 .identity h2 { margin: 0; color: #f2eee6; font-family: "Cormorant Garamond", Georgia, serif; font-size: 54px; font-weight: 400; line-height: 1; letter-spacing: 1px; }
-.actions { display: flex; gap: 16px; margin-top: 36px; }
-.button { position: relative; display: inline-flex; width: 310px; min-height: 66px; align-items: center; justify-content: space-between; padding: 0 24px 0 27px; overflow: hidden; border: 1px solid rgba(212, 161, 66, .92); border-radius: 8px; color: #f2eee6; background: #090a0d; font-family: "Montserrat", Arial, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.7px; text-decoration: none; }
+.actions { display: flex; gap: 18px; margin-top: 36px; }
+.button { position: relative; display: inline-flex; width: 370px; min-height: 96px; align-items: center; justify-content: space-between; padding: 0 31px 0 35px; overflow: hidden; border: 1px solid rgba(212, 161, 66, .92); border-radius: 10px; color: #f2eee6; background: #090a0d; font-family: "Montserrat", Arial, sans-serif; font-size: 21px; font-weight: 600; letter-spacing: 1.6px; text-decoration: none; }
 .button::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; content: ""; background: linear-gradient(90deg, rgba(44, 143, 255, .78), rgba(212, 161, 66, .22)); box-shadow: 0 0 10px rgba(54, 114, 236, .38); }
 .button:focus-visible { outline: 3px solid #f2eee6; outline-offset: 5px; }
 .footer { position: absolute; right: 92px; bottom: 63px; left: 92px; z-index: 3; display: flex; justify-content: center; }
