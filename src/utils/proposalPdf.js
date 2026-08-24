@@ -22,11 +22,13 @@ export function buildProposalFileName({ clientName } = {}) {
   return client ? `proposta-lucas-franco-${client}.pdf` : "proposta-lucas-franco.pdf";
 }
 
-export function buildWhatsAppMessage({ clientName } = {}) {
+export function buildWhatsAppMessage({ clientName, selectedDjName } = {}) {
   const name = String(clientName || "").trim();
-  return name
+  const intro = name
     ? `Olá, ${name}! Segue a proposta personalizada para o seu evento, preparada por Lucas Franco — DJ.`
     : "Olá! Segue a proposta personalizada para o seu evento, preparada por Lucas Franco — DJ.";
+  const dj = String(selectedDjName || "").trim();
+  return dj ? `${intro}\nDJ responsável: ${dj}` : intro;
 }
 
 export async function waitForProposalAssets(container) {
@@ -92,15 +94,22 @@ function addPageLinkAnnotations(pdf, page) {
   const pageBounds = page.getBoundingClientRect();
   if (!pageBounds.width || !pageBounds.height) return;
 
-  page.querySelectorAll("a[data-pdf-link]").forEach((link) => {
-    const url = link.getAttribute("data-pdf-link");
+  page.querySelectorAll("a[data-pdf-link], a[data-pdf-url]").forEach((link) => {
+    const url = link.getAttribute("data-pdf-url") || link.getAttribute("data-pdf-link");
     const bounds = link.getBoundingClientRect();
     if (!url || !bounds.width || !bounds.height) return;
 
-    const x = ((bounds.left - pageBounds.left) / pageBounds.width) * 210;
-    const y = ((bounds.top - pageBounds.top) / pageBounds.height) * 297;
-    const width = (bounds.width / pageBounds.width) * 210;
-    const height = (bounds.height / pageBounds.height) * 297;
+    // The preview can be scaled at any breakpoint. Normalize its DOM rectangle
+    // to the fixed 1055 × 1491 design canvas, then to A4 millimetres. The
+    // raster canvas uses the same normalized geometry at its capture scale.
+    const xInDesign = ((bounds.left - pageBounds.left) / pageBounds.width) * DESIGN_WIDTH;
+    const yInDesign = ((bounds.top - pageBounds.top) / pageBounds.height) * DESIGN_HEIGHT;
+    const widthInDesign = (bounds.width / pageBounds.width) * DESIGN_WIDTH;
+    const heightInDesign = (bounds.height / pageBounds.height) * DESIGN_HEIGHT;
+    const x = (xInDesign / DESIGN_WIDTH) * 210;
+    const y = (yInDesign / DESIGN_HEIGHT) * 297;
+    const width = (widthInDesign / DESIGN_WIDTH) * 210;
+    const height = (heightInDesign / DESIGN_HEIGHT) * 297;
     pdf.link(x, y, width, height, { url });
   });
 }

@@ -247,7 +247,7 @@ export default function BudgetDataPage({
             fieldKey="eventDate"
           />
           <BudgetDataField
-            label="DURAÇÃO DO SHOW"
+            label="TEMPO DE COBERTURA DE EVENTO"
             value={safeShowDuration}
             showLine={true}
             fieldKey="showDuration"

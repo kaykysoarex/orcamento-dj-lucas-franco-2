@@ -6,12 +6,14 @@ import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import PdfBudgetStructurePage from "./components/pdf/PdfBudgetStructurePage.jsx";
 import PdfProposalCategoryPages from "./components/pdf/PdfProposalCategoryPages.jsx";
+import SelectedDjPage from "./components/pdf/SelectedDjPage.jsx";
 import WeddingExperiencePage from "./components/pdf/WeddingExperiencePage.jsx";
 import InvestmentPage from "./components/pdf/InvestmentPage";
 import { PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
 import { buildProposalPdfCategories } from "./pdf/utils/proposalCategories.js";
 import { assetPath } from "./utils/assetPath.js";
 import { EXPERIENCE_URL } from "./config/experienceLink.js";
+import { DJ_PROFILES, getDjProfile, getMissingDjProfileData, isDjProfilePdfReady } from "./config/djProfiles.js";
 import { formatBudgetValue, formatBudgetValueInput, normalizeBudgetValueInCents, parseBudgetValueInput } from "./utils/budgetValue.js";
 import {
   buildWhatsAppMessage,
@@ -272,6 +274,8 @@ export default function OrcamentoApp() {
   const [eventLocal, setEventLocal] = useState("");
   const [eventType, setEventType] = useState("");
   const [showDuration, setShowDuration] = useState("");
+  const [selectedDjId, setSelectedDjId] = useState(null);
+  const [djSelectionError, setDjSelectionError] = useState("");
   const [clientErrors, setClientErrors] = useState({});
   const [pendingDeletePackageId, setPendingDeletePackageId] = useState(null);
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
@@ -300,6 +304,7 @@ export default function OrcamentoApp() {
   const proposalPdfCacheRef = useRef({ fingerprint: null, file: null });
   const pdfGenerationRef = useRef(null);
   const pdfExportRootRef = useRef(null);
+  const djSelectionRef = useRef(null);
 
   // When editing a saved proposal, restore form fields so preview and PDF show the same values
   useEffect(() => {
@@ -313,6 +318,8 @@ export default function OrcamentoApp() {
     setEventLocal(proposal.eventLocal || "");
     setEventType(proposal.eventType || "");
     setShowDuration(proposal.showDuration || "");
+    setSelectedDjId(getDjProfile(proposal.selectedDjId ?? null)?.id || null);
+    setDjSelectionError("");
     const restoredBudgetValueInCents = normalizeBudgetValueInCents(proposal.budgetValueInCents);
     setBudgetValueInCents(restoredBudgetValueInCents);
     setBudgetValueInput(restoredBudgetValueInCents ? formatBudgetValue(restoredBudgetValueInCents) : "");
@@ -369,11 +376,14 @@ export default function OrcamentoApp() {
     setBudgetValueInput(savedBudgetValueInCents ? formatBudgetValue(savedBudgetValueInCents) : "");
 
     const savedList = loadJSON(PROPOSALS_KEY, []);
-    if (Array.isArray(savedList)) setSavedProposals(savedList);
+    const migratedSavedList = Array.isArray(savedList)
+      ? savedList.map((savedBudget) => ({ ...savedBudget, selectedDjId: savedBudget.selectedDjId ?? null }))
+      : [];
+    if (Array.isArray(savedList)) setSavedProposals(migratedSavedList);
 
     const savedCounter = Number.parseInt(loadText(COUNTER_KEY, "0"), 10) || 0;
     const highestSavedNumber = Array.isArray(savedList)
-      ? savedList.reduce((highest, proposal) => Math.max(highest, Number(proposal.number) || 0), 0)
+      ? migratedSavedList.reduce((highest, proposal) => Math.max(highest, Number(proposal.number) || 0), 0)
       : 0;
     const next = Math.max(savedCounter, highestSavedNumber) + 1;
     setProposalNumber(next);
@@ -416,6 +426,9 @@ export default function OrcamentoApp() {
 
   const selectedPkg = packages.find((p) => p.id === selectedPkgId) || packages[0];
   const proposalPkg = selectedPkg;
+  const selectedDj = getDjProfile(selectedDjId);
+  const selectedDjProfileReady = isDjProfilePdfReady(selectedDj);
+  const selectedDjMissingData = selectedDj ? getMissingDjProfileData(selectedDj) : [];
   const completeCatalog = [...catalogoItens, ...customEquipment];
 
   // keep a derived list of selected item ids for the UI summary/modal
@@ -485,6 +498,7 @@ export default function OrcamentoApp() {
     eventLocal,
     eventType,
     showDuration,
+    selectedDjId,
     notes,
     structureMode,
     estruturaSelecionadaId,
@@ -499,7 +513,7 @@ export default function OrcamentoApp() {
     budgetValueInCents,
     experienceUrl: EXPERIENCE_URL,
   }), [
-    proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, notes,
+    proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, selectedDjId, notes,
     structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas, customEquipment,
     equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
     EXPERIENCE_URL,
@@ -553,7 +567,7 @@ export default function OrcamentoApp() {
     return () => clearTimeout(saveProposalTimer.current);
   }, [
     loaded, proposalNumber, currentProposalId, clientName, eventDate, eventLocal, eventType,
-    showDuration, notes, structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas,
+    showDuration, selectedDjId, notes, structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas,
     customEquipment, equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms,
     budgetValueInCents, priceOverride, selectedItemIds,
   ]);
@@ -733,6 +747,10 @@ export default function OrcamentoApp() {
   }
 
   function saveCurrentProposal({ silent = false } = {}) {
+    // Propostas novas só entram no armazenamento depois que um DJ foi definido.
+    // O autosave continua preservando alterações imediatamente após a seleção.
+    if (!selectedDj) return false;
+
     const isNewProposal = !currentProposalId;
     const storedCounter = Number.parseInt(loadText(COUNTER_KEY, "0"), 10) || 0;
     const number = proposalNumber || storedCounter + 1;
@@ -748,6 +766,7 @@ export default function OrcamentoApp() {
       eventLocal,
       eventType,
       showDuration,
+      selectedDjId,
       notes,
       packageId: proposalPkg?.id,
       packageName: proposalPkg?.name || "Estrutura selecionada para o seu evento", 
@@ -793,6 +812,8 @@ export default function OrcamentoApp() {
     setEventLocal("");
     setEventType("");
     setShowDuration("");
+    setSelectedDjId(null);
+    setDjSelectionError("");
     setClientErrors({});
     setNotes("");
     setBudgetValueInCents(0);
@@ -818,6 +839,30 @@ export default function OrcamentoApp() {
         if (firstError) {
           firstError.scrollIntoView({ behavior: "smooth", block: "center" });
           firstError.focus({ preventScroll: true });
+        }
+      }, 0);
+      return false;
+    }
+    if (!selectedDj) {
+      setDjSelectionError("Selecione o DJ responsável pelo evento.");
+      setActiveTab("editar");
+      window.setTimeout(() => {
+        const fieldset = djSelectionRef.current;
+        if (fieldset) {
+          fieldset.scrollIntoView({ behavior: "smooth", block: "center" });
+          fieldset.focus({ preventScroll: true });
+        }
+      }, 0);
+      return false;
+    }
+    if (!selectedDjProfileReady) {
+      setDjSelectionError(`Complete o cadastro de ${selectedDj.name}: ${selectedDjMissingData.join(", ")}.`);
+      setActiveTab("editar");
+      window.setTimeout(() => {
+        const fieldset = djSelectionRef.current;
+        if (fieldset) {
+          fieldset.scrollIntoView({ behavior: "smooth", block: "center" });
+          fieldset.focus({ preventScroll: true });
         }
       }, 0);
       return false;
@@ -911,7 +956,7 @@ export default function OrcamentoApp() {
     const shareData = {
       files: [result.file],
       title: "Proposta Lucas Franco — DJ",
-      text: buildWhatsAppMessage({ clientName }),
+      text: buildWhatsAppMessage({ clientName, selectedDjName: selectedDj?.displayName }),
     };
     const canShareFile = typeof navigator.share === "function"
       && typeof navigator.canShare === "function"
@@ -943,7 +988,7 @@ export default function OrcamentoApp() {
   }
 
   function openWhatsAppFallback() {
-    const text = encodeURIComponent(buildWhatsAppMessage({ clientName }));
+    const text = encodeURIComponent(buildWhatsAppMessage({ clientName, selectedDjName: selectedDj?.displayName }));
     const isMobile = window.matchMedia("(max-width: 767px)").matches;
     const url = isMobile ? `https://wa.me/?text=${text}` : `https://web.whatsapp.com/send?text=${text}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -961,6 +1006,8 @@ export default function OrcamentoApp() {
           showDuration={showDuration}
           clientName={clientName}
         />
+
+        {selectedDjProfileReady && <SelectedDjPage dj={selectedDj} />}
 
         {structureMode === 'with_structure' && estruturaSelecionadaId && (
           <PdfBudgetStructurePage structure={estruturaSelecionada} />
@@ -1184,6 +1231,23 @@ export default function OrcamentoApp() {
         }
         .obg-equipment-add button:hover { background: var(--accent-soft); border-color: var(--accent); }
 
+        .obg-dj-selector { min-width: 0; margin: 18px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+        .obg-dj-selector legend { padding: 0 5px; color: var(--ink); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+        .obg-dj-selector-error { border-color: #b34242; box-shadow: 0 0 0 2px rgba(179, 66, 66, .12); }
+        .obg-dj-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .obg-dj-option { position: relative; display: flex; min-width: 0; min-height: 82px; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
+        .obg-dj-option:hover { border-color: var(--accent); }
+        .obg-dj-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+        .obg-dj-option input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+        .obg-dj-avatar { display: inline-flex; width: 34px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; color: var(--gold); background: var(--dark); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+        .obg-dj-option input:focus-visible + .obg-dj-avatar { outline: 3px solid #1f6fb9; outline-offset: 3px; }
+        .obg-dj-option-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+        .obg-dj-option-copy strong { font-size: 12px; line-height: 1.2; }
+        .obg-dj-option-copy small { color: var(--ink-soft); font-size: 10px; line-height: 1.3; }
+        .obg-dj-radio { width: 17px; height: 17px; flex: 0 0 auto; border: 1.5px solid #a29a8f; border-radius: 50%; }
+        .obg-dj-option.selected .obg-dj-radio { border: 5px solid var(--accent); background: #fff; }
+        .obg-dj-profile-warning { margin: 10px 0 0; color: #9a5a33; font-size: 11px; font-weight: 600; line-height: 1.45; }
+
         .obg-item-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
         .obg-item-row input {
           flex: 1; width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm);
@@ -1359,6 +1423,10 @@ export default function OrcamentoApp() {
           .obg-panel-editor { flex: 1; min-width: 0; }
           .obg-panel-preview { flex: 0 0 380px; position: sticky; top: 20px; }
           .obg-header { padding: 20px 24px 12px; }
+        }
+
+        @media (max-width: 390px) {
+          .obg-dj-options { grid-template-columns: 1fr; }
         }
 
         @page { size: A4 portrait; margin: 0; }
@@ -1553,12 +1621,12 @@ export default function OrcamentoApp() {
             </div>
 
             <div className="obg-field">
-              <label>Duração do show</label>
+              <label>Tempo de cobertura de evento</label>
               <input
                 value={showDuration}
                 onChange={(e) => setShowDuration(e.target.value)}
                 placeholder="Ex: 5 horas, 3h30, Das 20h às 02h"
-                aria-label="Duração do show"
+                aria-label="Tempo de cobertura de evento"
               />
             </div>
           </div>
@@ -1667,6 +1735,49 @@ export default function OrcamentoApp() {
                   </details>
                 ))}
               </div>
+
+              <fieldset
+                ref={djSelectionRef}
+                tabIndex={-1}
+                className={`obg-dj-selector ${djSelectionError ? "obg-dj-selector-error" : ""}`}
+                aria-invalid={Boolean(djSelectionError)}
+                aria-describedby="dj-selection-help dj-selection-error dj-profile-warning"
+              >
+                <legend>DJ QUE FARÁ SUA FESTA ACONTECER <span className="obg-required">*</span></legend>
+                <p id="dj-selection-help" className="obg-equipment-help">Selecione o DJ responsável pelo seu evento.</p>
+                <div className="obg-dj-options">
+                  {Object.values(DJ_PROFILES).map((dj) => {
+                    const isSelected = selectedDjId === dj.id;
+                    const initials = dj.displayName.split(" ").map((part) => part[0]).join("");
+                    return (
+                      <label key={dj.id} className={`obg-dj-option ${isSelected ? "selected" : ""}`}>
+                        <input
+                          type="radio"
+                          name="selected-dj"
+                          value={dj.id}
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedDjId(dj.id);
+                            setDjSelectionError("");
+                          }}
+                        />
+                        <span className="obg-dj-avatar" aria-hidden="true">{initials}</span>
+                        <span className="obg-dj-option-copy">
+                          <strong>{dj.name}</strong>
+                          <small>{dj.imageAvailable ? "Perfil disponível para a proposta" : "Perfil em cadastro"}</small>
+                        </span>
+                        <span className="obg-dj-radio" aria-hidden="true" />
+                      </label>
+                    );
+                  })}
+                </div>
+                {djSelectionError && <p id="dj-selection-error" className="obg-field-error" role="alert">{djSelectionError}</p>}
+                {selectedDj && !selectedDjProfileReady && !djSelectionError && (
+                  <p id="dj-profile-warning" className="obg-dj-profile-warning" role="status">
+                    Administração: a página do DJ e a exportação permanecem bloqueadas até cadastrar {selectedDjMissingData.join(", ")} de {selectedDj.name}.
+                  </p>
+                )}
+              </fieldset>
             </div>
 
             {/* Summary bar above bottom controls */}
@@ -1684,6 +1795,7 @@ export default function OrcamentoApp() {
                     <h3>Resumo</h3>
                     <div style={{ maxHeight: 340, overflow:'auto' }}>
                       <div style={{ marginBottom:8 }}><strong>Estrutura:</strong> {estruturaSelecionadaId ? (estruturas.find(s=>s.id===estruturaSelecionadaId)?.nome || '—') : 'Sem estrutura'}</div>
+                      <div style={{ marginBottom:8 }}><strong>DJ responsável:</strong> {selectedDj?.displayName || 'Não selecionado'}</div>
                       <div>
                         <strong>Itens</strong>
                         <ul>
@@ -1706,41 +1818,6 @@ export default function OrcamentoApp() {
               )}
             </div>
 
-          </div>
-
-          <div className="obg-section">
-            <h2>Itens adicionais desta proposta</h2>
-            {extraItems.map((it) => (
-              <div className="obg-item-row" key={it.id}>
-                <input
-                  value={it.desc}
-                  onChange={(e) => updateExtraItem(it.id, "desc", e.target.value)}
-                  placeholder="Ex: Hora extra"
-                  style={{ flex: 2 }}
-                />
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={it.price}
-                  onChange={(e) => updateExtraItem(it.id, "price", Number(e.target.value))}
-                  placeholder="R$"
-                  style={{ flex: 1 }}
-                />
-                <button className="obg-icon-btn" onClick={() => removeExtraItem(it.id)}>
-                  <X size={15} />
-                </button>
-              </div>
-            ))}
-            <button className="obg-add-line" onClick={addExtraItem}>
-              <Plus size={14} /> Adicionar item extra
-            </button>
-          </div>
-
-          <div className="obg-section">
-            <h2>Observações (aparecem na proposta)</h2>
-            <div className="obg-field">
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: Inclui visita técnica ao local antes do evento." />
-            </div>
           </div>
 
           <div className="obg-section">

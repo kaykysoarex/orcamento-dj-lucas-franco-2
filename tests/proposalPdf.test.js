@@ -15,4 +15,8 @@ test("cria um nome de arquivo legível e seguro para a proposta", () => {
 test("monta a mensagem de compartilhamento sem nome indefinido", () => {
   assert.match(buildWhatsAppMessage({ clientName: "Ana" }), /Olá, Ana!/);
   assert.match(buildWhatsAppMessage({}), /Olá! Segue a proposta/);
+  assert.match(
+    buildWhatsAppMessage({ clientName: "Ana", selectedDjName: "Felipe Souza" }),
+    /DJ responsável: Felipe Souza/
+  );
 });
