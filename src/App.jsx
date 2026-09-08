@@ -33,17 +33,6 @@ const DEFAULT_PAYMENT_TERMS =
 
 const DEFAULT_PACKAGES = [];
 
-// Itens que acompanham todas as estruturas (reutilizável)
-const itensPadraoEstrutura = [
-  "strobo-led",
-  "pista-led-slim-paris-black",
-  "moving-head-profissional",
-  "envelopamento-black",
-  "sistema-som-profissional",
-  "cabeamento-completo",
-  "mesa-dobravel",
-];
-
 // Estruturas disponíveis (quatro estruturas conforme especificação)
 const DEFAULT_ESTRUTURAS = [
   {
@@ -54,7 +43,6 @@ const DEFAULT_ESTRUTURAS = [
       assetPath("/images/estruturas/estrutura-01-a.png"),
       assetPath("/images/estruturas/estrutura-01-b.png"),
     ],
-    itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 1,
   },
@@ -63,7 +51,6 @@ const DEFAULT_ESTRUTURAS = [
     nome: "Estrutura Stand",
     descricao: "Estrutura profissional personalizada para o evento.",
     imagens: [assetPath("/images/estruturas/estrutura-02.png")],
-    itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 2,
   },
@@ -72,7 +59,6 @@ const DEFAULT_ESTRUTURAS = [
     nome: "Estrutura Prime Ultra",
     descricao: "Estrutura profissional personalizada para o evento.",
     imagens: [assetPath("/images/estruturas/estrutura-03.png")],
-    itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 3,
   },
@@ -81,7 +67,6 @@ const DEFAULT_ESTRUTURAS = [
     nome: "Boate X",
     descricao: "Estrutura profissional personalizada para o evento.",
     imagens: [assetPath("/images/estruturas/estrutura-04.png")],
-    itensInclusosIds: itensPadraoEstrutura,
     ativo: true,
     ordem: 4,
   },
@@ -435,15 +420,11 @@ export default function OrcamentoApp() {
   useEffect(() => {
     const ids = new Set();
     equipamentosAdicionais.forEach((it) => ids.add(it.itemId));
-    const estrutura = estruturas.find((s) => s.id === estruturaSelecionadaId);
-    if (estrutura && Array.isArray(estrutura.itensInclusosIds)) {
-      estrutura.itensInclusosIds.forEach((id) => ids.add(id));
-    }
     if (selectedPkg && Array.isArray(selectedPkg.items)) {
       selectedPkg.items.forEach((it) => ids.add(it.itemId));
     }
     setSelectedItemIds(Array.from(ids));
-  }, [equipamentosAdicionais, estruturaSelecionadaId, estruturas, selectedPkg]);
+  }, [equipamentosAdicionais, selectedPkg]);
   const basePrice = priceOverride !== null ? priceOverride : proposalPkg?.price || 0;
   // Only extraItems (manual extras) and equipamentosAdicionais contribute to extras total
   const extraItemsTotal = extraItems.reduce((sum, it) => sum + (Number(it.price) || 0), 0);
@@ -460,17 +441,10 @@ export default function OrcamentoApp() {
     equipment.nome.toLocaleLowerCase("pt-BR").includes(normalizedEquipmentSearch)
   );
 
-  // Estrutura selecionada e itens inclusos
+  // A estrutura é apenas visual; os equipamentos são escolhidos manualmente.
   const estruturaSelecionada = estruturas.find((e) => e.id === estruturaSelecionadaId) || null;
-  const itensInclusos = (estruturaSelecionada?.itensInclusosIds || []).map((itemId) => ({
-    itemOrcamento: { itemId, quantidade: 1, valorUnitario: 0 },
-    itemCatalogo: buscarItemPorId(itemId) || customEquipment.find((item) => item.id === itemId),
-    incluso: true,
-  })).filter((entry) => entry.itemCatalogo?.ativo);
-
-  // Itens selecionados no pacote (se houver) — filtramos para não duplicar os itens inclusos
+  // Itens de pacotes salvos anteriormente, se houver.
   const packageItems = (proposalPkg?.items || [])
-    .filter((it) => !(estruturaSelecionada?.itensInclusosIds || []).includes(it.itemId))
     .map((itemOrcamento) => ({
       itemOrcamento,
       itemCatalogo: buscarItemPorId(itemOrcamento.itemId) || customEquipment.find((item) => item.id === itemOrcamento.itemId),
@@ -485,9 +459,9 @@ export default function OrcamentoApp() {
     incluso: false,
   })).filter((entry) => entry.itemCatalogo?.ativo);
 
-  const selectedProposalItems = [...itensInclusos, ...packageItems, ...adicionaisItems];
+  const selectedProposalItems = [...packageItems, ...adicionaisItems];
   const pdfProposalCategories = buildProposalPdfCategories({
-    includedItemIds: estruturaSelecionada?.itensInclusosIds || [],
+    includedItemIds: [],
     manualItems: [...(proposalPkg?.items || []), ...equipamentosAdicionais],
     resolveItem: (itemId) => buscarItemPorId(itemId) || customEquipment.find((item) => item.id === itemId),
   });
@@ -534,7 +508,7 @@ export default function OrcamentoApp() {
   }, [activeTab, proposalPdfFingerprint]);
 
   useEffect(() => {
-    if (activeTab !== "previa" || !clientDetailsComplete || !estruturaSelecionadaId) return undefined;
+    if (activeTab !== "previa" || !clientDetailsComplete) return undefined;
     if (proposalPdfCacheRef.current.fingerprint === proposalPdfFingerprint || pdfGenerationRef.current) return undefined;
 
     let cancelled = false;
@@ -558,7 +532,7 @@ export default function OrcamentoApp() {
       clearTimeout(timeout);
       if (idleId !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
     };
-  }, [activeTab, clientDetailsComplete, estruturaSelecionadaId, proposalPdfFingerprint]);
+  }, [activeTab, clientDetailsComplete, proposalPdfFingerprint]);
 
   useEffect(() => {
     if (!loaded || proposalNumber === null) return undefined;
@@ -681,22 +655,6 @@ export default function OrcamentoApp() {
     setPriceOverride(null);
   }
 
-  function togglePackageEquipment(equipment) {
-    if (!selectedPkg) return;
-    setPackages((prev) =>
-      prev.map((pkg) => {
-        if (pkg.id !== selectedPkg.id) return pkg;
-        const hasEquipment = pkg.items.some((item) => item.itemId === equipment.id);
-        return {
-          ...pkg,
-          items: hasEquipment
-            ? pkg.items.filter((item) => item.itemId !== equipment.id)
-            : [...pkg.items, { itemId: equipment.id, quantidade: 1, valorUnitario: 0 }],
-        };
-      })
-    );
-  }
-
   function addEquipmentToCatalog() {
     const typedEquipment = newEquipmentName.trim();
     if (!typedEquipment) return;
@@ -705,7 +663,9 @@ export default function OrcamentoApp() {
     );
     const equipment = existingEquipment || makeCustomCatalogItem(typedEquipment);
     if (!existingEquipment) setCustomEquipment((prev) => [...prev, equipment]);
-    if (selectedPkg && !selectedPkg.items.some((item) => item.itemId === equipment.id)) togglePackageEquipment(equipment);
+    if (!equipamentosAdicionais.some((item) => item.itemId === equipment.id)) {
+      setEquipamentosAdicionais((prev) => [...prev, { itemId: equipment.id, quantidade: 1, valorUnitario: 0 }]);
+    }
     setNewEquipmentName("");
     setEquipmentSearch("");
   }
@@ -865,15 +825,6 @@ export default function OrcamentoApp() {
           fieldset.focus({ preventScroll: true });
         }
       }, 0);
-      return false;
-    }
-    if (!estruturaSelecionadaId) {
-      setActiveTab("editar");
-      window.setTimeout(() => {
-        const el = document.querySelector('.obg-section');
-        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      }, 0);
-      alert('Selecione uma estrutura antes de gerar o PDF.');
       return false;
     }
     return true;
@@ -1633,7 +1584,7 @@ export default function OrcamentoApp() {
 
           <div className="obg-section">
             <h2>ESTRUTURA DO EVENTO</h2>
-            <p className="obg-equipment-help">O evento terá estrutura?</p>
+            <p className="obg-equipment-help">Deseja adicionar uma estrutura ao evento? (Opcional)</p>
 
             {/* Structure mode radios as cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1677,7 +1628,7 @@ export default function OrcamentoApp() {
             {/* Show structures only when with_structure */}
             {structureMode === 'with_structure' && (
               <div style={{ marginTop: 12 }}>
-                <p className="obg-equipment-help">Selecione uma estrutura para começar a montar esta proposta.</p>
+                <p className="obg-equipment-help">Selecione uma estrutura para incluir na proposta.</p>
                 <SeletorEstruturas
                   estruturas={estruturas}
                   estruturaSelecionadaId={estruturaSelecionadaId}
@@ -1705,28 +1656,24 @@ export default function OrcamentoApp() {
                       {completeCatalog.filter((it) => it.categoria === group.id).map((equipment) => {
                         const isSelectedInPackage = selectedPkg && selectedPkg.items.some((item) => item.itemId === equipment.id);
                         const isAdicional = equipamentosAdicionais.some((it) => it.itemId === equipment.id);
-                        const isIncludedInStructure = estruturas.find((s) => s.id === estruturaSelecionadaId)?.itensInclusosIds?.includes(equipment.id);
-                        const disabled = Boolean(isIncludedInStructure);
                         return (
                           <div key={equipment.id} onClick={() => {
-                              if (disabled) return;
-                              if (estruturaSelecionadaId) toggleEquipamentoAdicional(equipment);
-                              else togglePackageEquipment(equipment);
+                              toggleEquipamentoAdicional(equipment);
                             }}
-                            style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 6px', borderRadius:8, cursor: disabled ? 'not-allowed' : 'pointer', background:'#fff', marginBottom:8 }}
+                            style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 6px', borderRadius:8, cursor: 'pointer', background:'#fff', marginBottom:8 }}
                             role="checkbox"
-                            aria-checked={isSelectedInPackage || isAdicional || isIncludedInStructure}
+                            aria-checked={isSelectedInPackage || isAdicional}
                             tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!disabled) { if (estruturaSelecionadaId) toggleEquipamentoAdicional(equipment); else togglePackageEquipment(equipment); } } }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleEquipamentoAdicional(equipment); } }}
                           >
-                            <input type="checkbox" checked={isSelectedInPackage || isAdicional || isIncludedInStructure} readOnly style={{ width:24, height:24 }} />
+                            <input type="checkbox" checked={isSelectedInPackage || isAdicional} readOnly style={{ width:24, height:24 }} />
                             {equipment.imagem ? <img src={equipment.imagem} alt="" style={{ width:40, height:40, objectFit:'cover', borderRadius:6 }} onError={(e)=>{e.currentTarget.style.display='none'}} /> : null}
                             <div style={{ flex:1 }}>
                               <div style={{ fontWeight:700 }}>{equipment.nome}</div>
                               <div style={{ fontSize:13, color:'#6e675f' }}>{equipment.descricao}</div>
                             </div>
                             <div style={{ marginLeft: 8 }}>
-                              {isIncludedInStructure ? <span style={{ fontSize:12, padding:'4px 8px', background:'#fff5e0', borderRadius:6 }}>Incluído na estrutura</span> : (isAdicional ? <span style={{ fontSize:12, padding:'4px 8px', background:'#e8f6ea', borderRadius:6 }}>Selecionado</span> : null)}
+                              {isAdicional ? <span style={{ fontSize:12, padding:'4px 8px', background:'#e8f6ea', borderRadius:6 }}>Selecionado</span> : null}
                             </div>
                           </div>
                         );
@@ -1799,11 +1746,11 @@ export default function OrcamentoApp() {
                       <div>
                         <strong>Itens</strong>
                         <ul>
-                          {Array.from(new Set([...(estruturas.find(s=>s.id===estruturaSelecionadaId)?.itensInclusosIds||[]), ...equipamentosAdicionais.map(i=>i.itemId)] )).map((id) => (
+                          {equipamentosAdicionais.map(({ itemId: id }) => (
                             <li key={id} style={{ display:'flex', justifyContent:'space-between', gap:8 }}>
                               <span>{(buscarItemPorId(id) || customEquipment.find(c=>c.id===id))?.nome || id}</span>
                               <span>
-                                { (estruturas.find(s=>s.id===estruturaSelecionadaId)?.itensInclusosIds||[]).includes(id) ? <em>Incluído</em> : <button className="obg-ghost-btn" onClick={() => { toggleEquipamentoAdicional(buscarItemPorId(id)); }}>Remover</button> }
+                                <button className="obg-ghost-btn" onClick={() => { toggleEquipamentoAdicional(buscarItemPorId(id) || customEquipment.find(c => c.id === id)); }}>Remover</button>
                               </span>
                             </li>
                           ))}
