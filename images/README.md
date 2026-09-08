@@ -28,4 +28,5 @@ Os caminhos abaixo são públicos e já estão cadastrados no catálogo. Nenhuma
 | Técnico de Áudio | `/images/servicos/tecnico-audio.png` | pendente |
 | Técnico de Iluminação | `/images/servicos/tecnico-iluminacao.png` | pendente |
 | Cabeamento Completo | `/images/equipamentos/cabeamento-completo.png` | pendente |
+| Sonorização de Cerimônia | `/images/equipamentos/sonorizacao-cerimonia.png` | pendente |
 | Placeholder | `/images/placeholder-item.png` | pendente |
