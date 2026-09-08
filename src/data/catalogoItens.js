@@ -37,6 +37,7 @@ export const catalogoItens = [
   { id: "tecnico-iluminacao", slug: "tecnico-iluminacao", nome: "Técnico de Iluminação", descricao: "Acompanhamento técnico para operação da iluminação.", categoria: "servico", imagem: imagem("servicos", "tecnico-iluminacao"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 23 },
   { id: "cabeamento-completo", slug: "cabeamento-completo", nome: "Cabeamento Completo", descricao: "Cabeamento necessário para a organização da montagem.", categoria: "equipamento", imagem: imagem("equipamentos", "cabeamento-completo"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 24 },
   { id: "fogos-artificio", slug: "fogos-artificio", nome: "Fogos de Artifício", descricao: "Show de fogos de artifício para momentos especiais.", categoria: "efeito", imagem: imagem("efeitos", "fogos-artificio"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 25 },
+  { id: "sonorizacao-cerimonia", slug: "sonorizacao-cerimonia", nome: "Sonorização de Cerimônia", descricao: "Sistema de áudio para garantir clareza durante a cerimônia.", categoria: "equipamento", imagem: imagem("equipamentos", "sonorizacao-cerimonia"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 26 },
 ];
 
 export function buscarItemPorId(itemId) {
