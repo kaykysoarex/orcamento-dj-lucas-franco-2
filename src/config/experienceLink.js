@@ -1,1 +1,1 @@
-export const EXPERIENCE_URL = "https://kaykysoarex.github.io/portfolio-dj-lucas-franco/#experiencia-casamento";
+export const EXPERIENCE_URL = "https://djlucasfranco.com.br/#experiencia-casamento";
