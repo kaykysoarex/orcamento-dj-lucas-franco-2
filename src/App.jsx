@@ -1768,7 +1768,7 @@ export default function OrcamentoApp() {
                     <div aria-live="polite" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8, marginTop: 12 }}>
                       <div style={{ display: "flex", minHeight: 150, alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid #e5ddd2", borderRadius: 8, background: "#111319" }}>
                         {ledPanel.image ? (
-                          <img src={ledPanel.image} alt={ledPanel.imageName || "Imagem selecionada para o Painel de LED"} style={{ width: "100%", height: 220, objectFit: "contain" }} />
+                          <img src={ledPanel.image} alt={ledPanel.imageName || "Imagem selecionada para o Painel de LED"} style={{ display: "block", maxWidth: "100%", maxHeight: 220, width: "auto", height: "auto" }} />
                         ) : (
                           <span style={{ color: "#dcd8d3", fontSize: 13 }}>Nenhuma imagem selecionada</span>
                         )}

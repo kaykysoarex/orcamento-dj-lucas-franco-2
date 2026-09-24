@@ -20,7 +20,7 @@
 .subtitle { margin: 17px 0 0; color: rgba(242, 238, 230, .78); font-family: "Montserrat", Arial, sans-serif; font-size: 18px; font-weight: 400; letter-spacing: 2.4px; }
 
 .imageFrame { position: absolute; top: 316px; right: 92px; left: 92px; z-index: 3; height: 604px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(201, 148, 53, .58); background: rgba(255, 255, 255, .025); box-sizing: border-box; }
-.image { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.image { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; }
 .imagePlaceholder { margin: 0; color: rgba(242, 238, 230, .58); font-family: "Montserrat", Arial, sans-serif; font-size: 18px; }
 
 .specifications { position: absolute; top: 1005px; right: 92px; left: 92px; z-index: 3; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid rgba(201, 148, 53, .58); border-bottom: 1px solid rgba(201, 148, 53, .4); }
