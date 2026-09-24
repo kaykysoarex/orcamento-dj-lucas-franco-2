@@ -298,6 +298,7 @@ export default function OrcamentoApp() {
   const savedProposalsRef = useRef([]);
   const restoredProposalIdRef = useRef(null);
   const proposalPdfCacheRef = useRef({ fingerprint: null, file: null });
+  const latestProposalPdfFingerprintRef = useRef(null);
   const pdfGenerationRef = useRef(null);
   const pdfExportRootRef = useRef(null);
   const djSelectionRef = useRef(null);
@@ -516,6 +517,7 @@ export default function OrcamentoApp() {
     equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
     EXPERIENCE_URL,
   ]);
+  latestProposalPdfFingerprintRef.current = proposalPdfFingerprint;
 
   useEffect(() => {
     proposalPdfCacheRef.current = { fingerprint: null, file: null };
@@ -888,24 +890,37 @@ export default function OrcamentoApp() {
   }
 
   async function getProposalPdfFile({ onProgress } = {}) {
+    const fingerprint = proposalPdfFingerprint;
     const cached = proposalPdfCacheRef.current;
-    if (cached.file && cached.fingerprint === proposalPdfFingerprint) {
+    if (cached.file && cached.fingerprint === fingerprint) {
       return { file: cached.file, fromCache: true };
     }
-    if (pdfGenerationRef.current) return pdfGenerationRef.current;
+
+    const pendingGeneration = pdfGenerationRef.current;
+    if (pendingGeneration) {
+      if (pendingGeneration.fingerprint === fingerprint) return pendingGeneration.promise;
+
+      // Do not share a PDF prepared for an earlier version of the proposal.
+      // This is especially important right after a structure is selected.
+      await pendingGeneration.promise.catch(() => undefined);
+      if (pdfGenerationRef.current === pendingGeneration) pdfGenerationRef.current = null;
+      return getProposalPdfFile({ onProgress });
+    }
 
     const generation = (async () => {
       const container = pdfExportRootRef.current;
       const file = await generateProposalPdfFile({ container, clientName, onProgress });
-      proposalPdfCacheRef.current = { fingerprint: proposalPdfFingerprint, file };
+      if (latestProposalPdfFingerprintRef.current === fingerprint) {
+        proposalPdfCacheRef.current = { fingerprint, file };
+      }
       return { file, fromCache: false };
     })();
-    pdfGenerationRef.current = generation;
+    pdfGenerationRef.current = { fingerprint, promise: generation };
 
     try {
       return await generation;
     } finally {
-      pdfGenerationRef.current = null;
+      if (pdfGenerationRef.current?.promise === generation) pdfGenerationRef.current = null;
     }
   }
 
