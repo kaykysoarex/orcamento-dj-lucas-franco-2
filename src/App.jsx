@@ -461,6 +461,7 @@ export default function OrcamentoApp() {
   const actionButtonLabel = pdfProgress
     ? `Página ${pdfProgress.current} de ${pdfProgress.total}`
     : "Preparando PDF...";
+  const whatsAppFallbackUrl = `https://wa.me/?text=${encodeURIComponent(buildWhatsAppMessage({ clientName, selectedDjName: selectedDj?.displayName }))}`;
   const normalizedEquipmentSearch = equipmentSearch.trim().toLocaleLowerCase("pt-BR");
   const filteredEquipment = completeCatalog.filter((equipment) =>
     equipment.nome.toLocaleLowerCase("pt-BR").includes(normalizedEquipmentSearch)
@@ -995,13 +996,6 @@ export default function OrcamentoApp() {
     }
   }
 
-  function openWhatsAppFallback() {
-    const text = encodeURIComponent(buildWhatsAppMessage({ clientName, selectedDjName: selectedDj?.displayName }));
-    const isMobile = window.matchMedia("(max-width: 767px)").matches;
-    const url = isMobile ? `https://wa.me/?text=${text}` : `https://web.whatsapp.com/send?text=${text}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
   function renderProposalPages() {
     return (
       <>
@@ -1326,7 +1320,8 @@ export default function OrcamentoApp() {
         .obg-share-fallback-dialog h3 { margin: 0 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; }
         .obg-share-fallback-dialog p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
         .obg-share-fallback-actions { display: flex; gap: 8px; margin-top: 18px; }
-        .obg-share-fallback-actions button { flex: 1; min-height: 44px; border-radius: 999px; font-weight: 700; cursor: pointer; }
+        .obg-share-fallback-actions button, .obg-share-fallback-actions a { flex: 1; min-height: 44px; border-radius: 999px; font-weight: 700; cursor: pointer; }
+        .obg-share-fallback-actions a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 
         .obg-card {
           background: var(--dark-card); color: var(--cream);
@@ -2037,7 +2032,7 @@ export default function OrcamentoApp() {
             <h3 id="share-fallback-title">PDF baixado</h3>
             <p>Seu navegador não permite enviar o arquivo diretamente. Abra o WhatsApp e anexe o PDF baixado.</p>
             <div className="obg-share-fallback-actions">
-              <button type="button" className="obg-btn-dark" onClick={openWhatsAppFallback}>Abrir WhatsApp</button>
+              <a className="obg-btn-dark" href={whatsAppFallbackUrl} target="_blank" rel="noopener noreferrer" onClick={() => setShareFallbackOpen(false)}>Abrir WhatsApp</a>
               <button type="button" className="obg-btn-outline" onClick={() => setShareFallbackOpen(false)}>Fechar</button>
             </div>
           </div>
