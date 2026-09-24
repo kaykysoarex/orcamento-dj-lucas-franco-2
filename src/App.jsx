@@ -6,6 +6,7 @@ import PdfBiographyPage from "./components/pdf/PdfBiographyPage.jsx";
 import PdfBudgetDataPage from "./components/pdf/PdfBudgetDataPage.jsx";
 import PdfBudgetStructurePage from "./components/pdf/PdfBudgetStructurePage.jsx";
 import PdfProposalCategoryPages from "./components/pdf/PdfProposalCategoryPages.jsx";
+import { PdfRenderModeProvider } from "./components/pdf/PdfPage.jsx";
 import SelectedDjPage from "./components/pdf/SelectedDjPage.jsx";
 import WeddingExperiencePage from "./components/pdf/WeddingExperiencePage.jsx";
 import InvestmentPage from "./components/pdf/InvestmentPage";
@@ -466,6 +467,7 @@ export default function OrcamentoApp() {
 
   // A estrutura é apenas visual; os equipamentos são escolhidos manualmente.
   const estruturaSelecionada = estruturas.find((e) => e.id === estruturaSelecionadaId) || null;
+  const hasSelectedStandardStructure = Boolean(estruturaSelecionada && estruturaSelecionada.id !== LED_PANEL_STRUCTURE_ID);
   const isLedPanelSelected = structureMode === "led_panel" && estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID;
   // Itens de pacotes salvos anteriormente, se houver.
   const packageItems = (proposalPkg?.items || [])
@@ -532,33 +534,6 @@ export default function OrcamentoApp() {
     });
     return undefined;
   }, [activeTab, proposalPdfFingerprint]);
-
-  useEffect(() => {
-    if (activeTab !== "previa" || !clientDetailsComplete) return undefined;
-    if (proposalPdfCacheRef.current.fingerprint === proposalPdfFingerprint || pdfGenerationRef.current) return undefined;
-
-    let cancelled = false;
-    let idleId;
-    const prepare = () => {
-      if (cancelled || pdfGenerationRef.current) return;
-      getProposalPdfFile().catch((error) => {
-        if (import.meta.env.DEV) console.warn("Não foi possível preparar o PDF em segundo plano", error);
-      });
-    };
-    const timeout = window.setTimeout(() => {
-      if (typeof window.requestIdleCallback === "function") {
-        idleId = window.requestIdleCallback(prepare, { timeout: 2500 });
-      } else {
-        prepare();
-      }
-    }, 1000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-      if (idleId !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
-    };
-  }, [activeTab, clientDetailsComplete, proposalPdfFingerprint]);
 
   useEffect(() => {
     if (!loaded || proposalNumber === null) return undefined;
@@ -1032,7 +1007,7 @@ export default function OrcamentoApp() {
 
         {selectedDjProfileReady && <SelectedDjPage dj={selectedDj} />}
 
-        {structureMode === 'with_structure' && estruturaSelecionadaId && (
+        {hasSelectedStandardStructure && (
           <PdfBudgetStructurePage structure={estruturaSelecionada} />
         )}
 
@@ -2015,9 +1990,11 @@ export default function OrcamentoApp() {
       </div>
 
       <div id="pdf-export-root" className="pdf-export-root" ref={pdfExportRootRef} aria-hidden="true">
-        <div className="pdf-pages-container">
-          {renderProposalPages()}
-        </div>
+        <PdfRenderModeProvider mode="export">
+          <div className="pdf-pages-container">
+            {renderProposalPages()}
+          </div>
+        </PdfRenderModeProvider>
       </div>
 
       <div className="obg-bottom-bar">

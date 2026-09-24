@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 export const PDF_PAGE_WIDTH = 1055;
 export const PDF_PAGE_HEIGHT = 1491;
+const PdfRenderModeContext = createContext("preview");
+
+export function PdfRenderModeProvider({ mode = "preview", children }) {
+  return <PdfRenderModeContext.Provider value={mode}>{children}</PdfRenderModeContext.Provider>;
+}
 
 /**
  * The composition always lives on the fixed design canvas.  Only this outer
@@ -16,8 +21,11 @@ export default function PdfPage({
 }) {
   const itemRef = useRef(null);
   const [scale, setScale] = useState(1);
+  const renderMode = useContext(PdfRenderModeContext);
+  const isExport = renderMode === "export";
 
   useEffect(() => {
+    if (isExport) return undefined;
     const item = itemRef.current;
     if (!item) return undefined;
 
@@ -46,10 +54,11 @@ export default function PdfPage({
       window.removeEventListener("resize", updateScale);
       window.removeEventListener("orientationchange", updateScale);
     };
-  }, []);
+  }, [isExport]);
 
-  const scaledWidth = PDF_PAGE_WIDTH * scale;
-  const scaledHeight = PDF_PAGE_HEIGHT * scale;
+  const pageScale = isExport ? 1 : scale;
+  const scaledWidth = PDF_PAGE_WIDTH * pageScale;
+  const scaledHeight = PDF_PAGE_HEIGHT * pageScale;
 
   return (
     <Element ref={itemRef} className="pdf-preview-item" aria-label={ariaLabel}>
@@ -59,7 +68,7 @@ export default function PdfPage({
       >
         <div
           className={`pdf-page ${pageClassName}`.trim()}
-          style={{ transform: `scale(${scale})` }}
+          style={{ transform: `scale(${pageScale})` }}
         >
           {children}
         </div>

@@ -3,7 +3,9 @@ import { jsPDF } from "jspdf";
 
 const DESIGN_WIDTH = 1055;
 const DESIGN_HEIGHT = 1491;
-export const PDF_CAPTURE_SCALE = 1.3;
+// The fixed 1055px design canvas already yields a sharp A4 PDF. A modest
+// capture scale keeps text clear while substantially reducing render time.
+export const PDF_CAPTURE_SCALE = 1.15;
 export const PDF_JPEG_QUALITY = 0.9;
 
 export function sanitizeProposalFilePart(value) {
