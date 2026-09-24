@@ -164,6 +164,7 @@ function assertInvestmentPage(inspection, expectedValue, expectedDetails = {}) {
   assert.match(text, new RegExp(expectedValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "Investimento deve mostrar o valor formatado");
   assert.match(text, /LUCAS FRANCO — DJ/, "Investimento deve apresentar a identificação do DJ no cabeçalho");
   assert.match(text, /Nº 0001/, "Investimento deve formatar o número real da proposta com quatro dígitos");
+  assert.match(text, /Sinal de 30% na assinatura do contrato/, "Investimento deve mostrar as condições de pagamento abaixo do valor");
   for (const detail of Object.values(expectedDetails)) {
     assert.ok(text.includes(detail), `Investimento deve mostrar o dado dinâmico: ${detail}`);
   }

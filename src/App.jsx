@@ -9,6 +9,7 @@ import PdfProposalCategoryPages from "./components/pdf/PdfProposalCategoryPages.
 import SelectedDjPage from "./components/pdf/SelectedDjPage.jsx";
 import WeddingExperiencePage from "./components/pdf/WeddingExperiencePage.jsx";
 import InvestmentPage from "./components/pdf/InvestmentPage";
+import LedPanelPage from "./components/pdf/LedPanelPage";
 import { PLACEHOLDER_ITEM_IMAGE, buscarItemPorId, catalogoItens } from "./data/catalogoItens.js";
 import { buildProposalPdfCategories } from "./pdf/utils/proposalCategories.js";
 import { assetPath } from "./utils/assetPath.js";
@@ -30,6 +31,7 @@ const BUDGET_VALUE_KEY = "lucas-franco-budget-value-in-cents";
 const PROPOSALS_KEY = "lucas-franco-proposals";
 const DEFAULT_PAYMENT_TERMS =
   "Sinal de 30% na assinatura do contrato, restante na semana do evento. Pagamento via Pix ou cartão em até 12x (com taxa da operadora). Atendimento somente com pacote fechado.";
+const LED_PANEL_STRUCTURE_ID = "painel-led";
 
 const DEFAULT_PACKAGES = [];
 
@@ -69,6 +71,14 @@ const DEFAULT_ESTRUTURAS = [
     imagens: [assetPath("/images/estruturas/estrutura-04.png")],
     ativo: true,
     ordem: 4,
+  },
+  {
+    id: LED_PANEL_STRUCTURE_ID,
+    nome: "Painel de LED",
+    descricao: "Painel de LED configurável para o seu evento.",
+    imagens: [],
+    ativo: true,
+    ordem: 5,
   },
 ];
 
@@ -244,6 +254,7 @@ export default function OrcamentoApp() {
   const [packages, setPackages] = useState(DEFAULT_PACKAGES);
   const [estruturas, setEstruturas] = useState(DEFAULT_ESTRUTURAS);
   const [estruturaSelecionadaId, setEstruturaSelecionadaId] = useState(null);
+  const [ledPanel, setLedPanel] = useState({ width: "", height: "", image: "", imageName: "" });
   const [equipamentosAdicionais, setEquipamentosAdicionais] = useState([]); // { itemId, quantidade, valorUnitario }
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
@@ -273,7 +284,7 @@ export default function OrcamentoApp() {
   const [proposalNumber, setProposalNumber] = useState(null);
   const [savedProposals, setSavedProposals] = useState([]);
   const [currentProposalId, setCurrentProposalId] = useState(null);
-  const [structureMode, setStructureMode] = useState(""); // '' | 'none' | 'with_structure' — start unselected
+  const [structureMode, setStructureMode] = useState(""); // '' | 'none' | 'with_structure' | 'led_panel'
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [pdfActionState, setPdfActionState] = useState("idle"); // idle | generating
@@ -310,10 +321,21 @@ export default function OrcamentoApp() {
     setBudgetValueInput(restoredBudgetValueInCents ? formatBudgetValue(restoredBudgetValueInCents) : "");
     setBudgetValueError("");
 
-    // restore structure mode and selection if present
-    const mode = proposal.structureMode || (proposal.packageId ? 'with_structure' : 'none');
+    // Restore the dedicated LED panel mode, including proposals saved before it gained its own button.
+    const restoredStructureId = proposal.selectedStructureId || proposal.packageId || null;
+    const mode = restoredStructureId === LED_PANEL_STRUCTURE_ID
+      ? "led_panel"
+      : proposal.structureMode || (proposal.packageId ? "with_structure" : "none");
     setStructureMode(mode);
-    setEstruturaSelecionadaId(proposal.packageId || null);
+    setEstruturaSelecionadaId(restoredStructureId);
+    const savedLedImage = String(proposal.ledPanel?.image || "");
+    const userAddedLedImage = savedLedImage.startsWith("data:image/") ? savedLedImage : "";
+    setLedPanel({
+      width: proposal.ledPanel?.width || "",
+      height: proposal.ledPanel?.height || "",
+      image: userAddedLedImage,
+      imageName: userAddedLedImage ? proposal.ledPanel?.imageName || "" : "",
+    });
 
     // restore equipamentos adicionais from itemSnapshots (exclude package items)
     const pkgItemIds = new Set((proposal.packageSnapshot?.items || []).map((i) => i.itemId));
@@ -443,6 +465,10 @@ export default function OrcamentoApp() {
 
   // A estrutura é apenas visual; os equipamentos são escolhidos manualmente.
   const estruturaSelecionada = estruturas.find((e) => e.id === estruturaSelecionadaId) || null;
+  const isLedPanelSelected = structureMode === "led_panel" && estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID;
+  const selectedStructureForPdf = isLedPanelSelected && ledPanel.image
+    ? { ...estruturaSelecionada, imagens: [ledPanel.image] }
+    : estruturaSelecionada;
   // Itens de pacotes salvos anteriormente, se houver.
   const packageItems = (proposalPkg?.items || [])
     .map((itemOrcamento) => ({
@@ -476,6 +502,7 @@ export default function OrcamentoApp() {
     notes,
     structureMode,
     estruturaSelecionadaId,
+    ledPanel,
     selectedPkgId,
     packages,
     estruturas,
@@ -488,7 +515,7 @@ export default function OrcamentoApp() {
     experienceUrl: EXPERIENCE_URL,
   }), [
     proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, selectedDjId, notes,
-    structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas, customEquipment,
+    structureMode, estruturaSelecionadaId, ledPanel, selectedPkgId, packages, estruturas, customEquipment,
     equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
     EXPERIENCE_URL,
   ]);
@@ -541,7 +568,7 @@ export default function OrcamentoApp() {
     return () => clearTimeout(saveProposalTimer.current);
   }, [
     loaded, proposalNumber, currentProposalId, clientName, eventDate, eventLocal, eventType,
-    showDuration, selectedDjId, notes, structureMode, estruturaSelecionadaId, selectedPkgId, packages, estruturas,
+    showDuration, selectedDjId, notes, structureMode, estruturaSelecionadaId, ledPanel, selectedPkgId, packages, estruturas,
     customEquipment, equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms,
     budgetValueInCents, priceOverride, selectedItemIds,
   ]);
@@ -553,6 +580,22 @@ export default function OrcamentoApp() {
 
   function selecionarEstrutura(id) {
     setEstruturaSelecionadaId(id);
+  }
+
+  function updateLedPanel(field, value) {
+    setLedPanel((current) => ({ ...current, [field]: value }));
+  }
+
+  async function handleLedPanelImageUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const image = await compressImage(file, 1200, 0.82);
+      setLedPanel((current) => ({ ...current, image, imageName: file.name }));
+    } catch {
+      setPdfNotice("Não foi possível preparar a imagem selecionada.");
+    }
+    event.target.value = "";
   }
 
   function toggleEquipamentoAdicional(equipment) {
@@ -734,6 +777,7 @@ export default function OrcamentoApp() {
       // preserve structure and item selections so saved proposals fully restore
       structureMode,
       selectedStructureId: estruturaSelecionadaId,
+      ledPanel: isLedPanelSelected ? { ...ledPanel } : null,
       selectedItemIds,
       itemSnapshots: selectedProposalItems.map(({ itemOrcamento, itemCatalogo }) => ({
         itemId: itemOrcamento.itemId,
@@ -781,6 +825,7 @@ export default function OrcamentoApp() {
     setBudgetValueError("");
     setExtraItems([]);
     setPriceOverride(null);
+    setLedPanel({ width: "", height: "", image: "", imageName: "" });
     setCurrentProposalId(null);
     restoredProposalIdRef.current = null;
     const storedCounter = Number.parseInt(loadText(COUNTER_KEY, "0"), 10) || 0;
@@ -826,6 +871,21 @@ export default function OrcamentoApp() {
         }
       }, 0);
       return false;
+    }
+    if (isLedPanelSelected) {
+      const validWidth = Number(ledPanel.width) > 0;
+      const validHeight = Number(ledPanel.height) > 0;
+      const validImage = Boolean(ledPanel.image);
+      if (!validWidth || !validHeight || !validImage) {
+        setPdfNotice("Informe largura, altura e uma imagem para o Painel de LED.");
+        setActiveTab("editar");
+        window.setTimeout(() => {
+          const field = document.querySelector("[data-led-panel-required='true']");
+          field?.scrollIntoView({ behavior: "smooth", block: "center" });
+          field?.focus({ preventScroll: true });
+        }, 0);
+        return false;
+      }
     }
     return true;
   }
@@ -960,9 +1020,11 @@ export default function OrcamentoApp() {
 
         {selectedDjProfileReady && <SelectedDjPage dj={selectedDj} />}
 
-        {structureMode === 'with_structure' && estruturaSelecionadaId && (
-          <PdfBudgetStructurePage structure={estruturaSelecionada} />
+        {(structureMode === 'with_structure' || structureMode === 'led_panel') && estruturaSelecionadaId && (
+          <PdfBudgetStructurePage structure={selectedStructureForPdf} />
         )}
+
+        {isLedPanelSelected && <LedPanelPage panel={ledPanel} />}
 
         <PdfProposalCategoryPages categories={pdfProposalCategories} />
 
@@ -975,6 +1037,7 @@ export default function OrcamentoApp() {
               clientName={clientName}
               eventDate={formatDateBR(eventDate)}
               eventLocation={eventLocal}
+              paymentTerms={paymentTerms}
               showPaymentTerms={showPaymentTerms}
             />
           </>
@@ -1560,15 +1623,17 @@ export default function OrcamentoApp() {
 
             <div className="obg-field">
               <label>Tipo de evento</label>
-              <select
+              <input
+                list="event-type-options"
                 value={eventType}
                 onChange={(e) => setEventType(e.target.value)}
+                placeholder="Selecione ou digite o tipo de evento"
                 aria-label="Tipo de evento"
-              >
-                <option value="">Selecione...</option>
-                <option value="Casamento">Casamento</option>
-                <option value="Festa de 15 anos">Festa de 15 anos</option>
-              </select>
+              />
+              <datalist id="event-type-options">
+                <option value="Casamento" />
+                <option value="Festa de 15 anos" />
+              </datalist>
             </div>
 
             <div className="obg-field">
@@ -1608,7 +1673,10 @@ export default function OrcamentoApp() {
 
               <button
                 type="button"
-                onClick={() => { setStructureMode('with_structure'); }}
+                onClick={() => {
+                  setStructureMode('with_structure');
+                  if (estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID) setEstruturaSelecionadaId(null);
+                }}
                 aria-pressed={structureMode === 'with_structure'}
                 className={`obg-pkg-chip ${structureMode === 'with_structure' ? 'active' : ''}`}
                 style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: structureMode === 'with_structure' ? '#0c0d10' : '#fff', border: structureMode === 'with_structure' ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: structureMode === 'with_structure' ? '#fff' : '#000', minHeight: 72 }}
@@ -1623,17 +1691,95 @@ export default function OrcamentoApp() {
                   </div>
                 </div>
               </button>
+
+              <button
+                type="button"
+                onClick={() => { setStructureMode('led_panel'); setEstruturaSelecionadaId(LED_PANEL_STRUCTURE_ID); }}
+                aria-pressed={structureMode === 'led_panel'}
+                className={`obg-pkg-chip ${structureMode === 'led_panel' ? 'active' : ''}`}
+                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: structureMode === 'led_panel' ? '#0c0d10' : '#fff', border: structureMode === 'led_panel' ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: structureMode === 'led_panel' ? '#fff' : '#000', minHeight: 72 }}
+              >
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>Painel de LED</div>
+                    <div style={{ fontSize: 13, color: structureMode === 'led_panel' ? '#dcd8d3' : '#6e675f' }}>Configure medidas e imagem para a proposta.</div>
+                  </div>
+                  <div style={{ marginLeft: 8 }}>
+                    {structureMode === 'led_panel' ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
+                  </div>
+                </div>
+              </button>
             </div>
 
-            {/* Show structures only when with_structure */}
-            {structureMode === 'with_structure' && (
+            {/* The LED panel has its own primary option; the gallery only lists standard structures. */}
+            {(structureMode === 'with_structure' || structureMode === 'led_panel') && (
               <div style={{ marginTop: 12 }}>
-                <p className="obg-equipment-help">Selecione uma estrutura para incluir na proposta.</p>
-                <SeletorEstruturas
-                  estruturas={estruturas}
-                  estruturaSelecionadaId={estruturaSelecionadaId}
-                  onSelecionar={(id) => { setEstruturaSelecionadaId(id); setStructureMode('with_structure'); }}
-                />
+                {structureMode === 'with_structure' && <>
+                  <p className="obg-equipment-help">Selecione uma estrutura para incluir na proposta.</p>
+                  <SeletorEstruturas
+                    estruturas={estruturas.filter((estrutura) => estrutura.id !== LED_PANEL_STRUCTURE_ID)}
+                    estruturaSelecionadaId={estruturaSelecionadaId}
+                    onSelecionar={(id) => { setEstruturaSelecionadaId(id); setStructureMode('with_structure'); }}
+                  />
+                </>}
+                {isLedPanelSelected && (
+                  <section aria-labelledby="led-panel-config-title" style={{ marginTop: 16, padding: 16, border: "1px solid #d9c494", borderRadius: 12, background: "#fffdf8" }}>
+                    <h3 id="led-panel-config-title" style={{ margin: "0 0 6px" }}>Configurar Painel de LED</h3>
+                    <p className="obg-equipment-help" style={{ marginTop: 0 }}>Informe as medidas em metros e escolha a imagem que será exibida na proposta.</p>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                      <div className="obg-field">
+                        <label htmlFor="led-panel-width">Largura (m) <span className="obg-required">*</span></label>
+                        <input
+                          id="led-panel-width"
+                          data-led-panel-required="true"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={ledPanel.width}
+                          onChange={(event) => updateLedPanel("width", event.target.value)}
+                          placeholder="Ex.: 4,00"
+                          required
+                        />
+                      </div>
+                      <div className="obg-field">
+                        <label htmlFor="led-panel-height">Altura (m) <span className="obg-required">*</span></label>
+                        <input
+                          id="led-panel-height"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={ledPanel.height}
+                          onChange={(event) => updateLedPanel("height", event.target.value)}
+                          placeholder="Ex.: 2,50"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="obg-field" style={{ marginTop: 12 }}>
+                      <label>Imagem do painel <span className="obg-required">*</span></label>
+                      <p className="obg-field-help">Adicione uma imagem do seu dispositivo para usar no Painel de LED.</p>
+                      <label htmlFor="led-panel-upload" className="obg-ghost-btn" style={{ display: "inline-flex", marginTop: 10, cursor: "pointer" }}>
+                        <ImagePlus size={14} /> Adicionar imagem
+                      </label>
+                      <input id="led-panel-upload" type="file" accept="image/*" onChange={handleLedPanelImageUpload} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+                    </div>
+
+                    <div aria-live="polite" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8, marginTop: 12 }}>
+                      <div style={{ display: "flex", minHeight: 150, alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid #e5ddd2", borderRadius: 8, background: "#111319" }}>
+                        {ledPanel.image ? (
+                          <img src={ledPanel.image} alt={ledPanel.imageName || "Imagem selecionada para o Painel de LED"} style={{ width: "100%", height: 220, objectFit: "contain" }} />
+                        ) : (
+                          <span style={{ color: "#dcd8d3", fontSize: 13 }}>Nenhuma imagem selecionada</span>
+                        )}
+                      </div>
+                      {ledPanel.image && <p className="obg-field-help" style={{ margin: 0 }}>Imagem selecionada: {ledPanel.imageName || "Imagem adicionada"}</p>}
+                    </div>
+                  </section>
+                )}
                 {deleteSuccessMessage && <p className="obg-delete-success" role="status">{deleteSuccessMessage}</p>}
               </div>
             )}

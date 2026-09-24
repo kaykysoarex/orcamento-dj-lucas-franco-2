@@ -31,13 +31,17 @@ export default function SeletorEstruturas({ estruturas = [], estruturaSelecionad
         >
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ width: 88, height: 64, borderRadius: 8, overflow: "hidden", border: "1px solid rgba(0,0,0,0.06)" }}>
-              <img
-                src={e.imagens && e.imagens[(thumbIndex[e.id] || 0)]}
-                alt={e.nome}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                onError={handleImgError}
-                onClick={(ev) => { ev.preventDefault(); toggleThumb(e.id, e.imagens); }}
-              />
+              {e.imagens?.length ? (
+                <img
+                  src={e.imagens[thumbIndex[e.id] || 0]}
+                  alt={e.nome}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  onError={handleImgError}
+                  onClick={(ev) => { ev.preventDefault(); toggleThumb(e.id, e.imagens); }}
+                />
+              ) : (
+                <div aria-hidden="true" style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", background: "#111319", color: "#c9a961", fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>LED</div>
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700 }}>{e.nome}</div>

@@ -38,6 +38,7 @@ export const catalogoItens = [
   { id: "cabeamento-completo", slug: "cabeamento-completo", nome: "Cabeamento Completo", descricao: "Cabeamento necessário para a organização da montagem.", categoria: "equipamento", imagem: imagem("equipamentos", "cabeamento-completo"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 24 },
   { id: "fogos-artificio", slug: "fogos-artificio", nome: "Fogos de Artifício", descricao: "Show de fogos de artifício para momentos especiais.", categoria: "efeito", imagem: imagem("efeitos", "fogos-artificio"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 25 },
   { id: "sonorizacao-cerimonia", slug: "sonorizacao-cerimonia", nome: "Sonorização de Cerimônia", descricao: "Sistema de áudio para garantir clareza durante a cerimônia.", categoria: "equipamento", imagem: imagem("equipamentos", "sonorizacao-cerimonia"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 26 },
+  { id: "controladora-denon-sc-live-4", slug: "controladora-denon-sc-live-4", nome: "Controladora Denon SC Live 4", descricao: "Controladora profissional para performance e mixagem do DJ.", categoria: "equipamento", imagem: imagem("equipamentos", "controladora-denon-sc-live-4"), imagemFallback: PLACEHOLDER_ITEM_IMAGE, exibirImagemNoPdf: true, ativo: true, ordem: 27 },
 ];
 
 export function buscarItemPorId(itemId) {

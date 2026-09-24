@@ -11,6 +11,7 @@ type Props = {
   clientName?: string;
   eventDate?: string;
   eventLocation?: string;
+  paymentTerms?: string;
   showPaymentTerms?: boolean;
 };
 
@@ -36,6 +37,7 @@ export default function InvestmentPage({
   clientName,
   eventDate,
   eventLocation,
+  paymentTerms,
   showPaymentTerms = true,
 }: Props) {
   const value = formatBudgetValue(valueInCents);
@@ -81,8 +83,10 @@ export default function InvestmentPage({
         <section className={styles.valueArea} aria-label="Valor total da proposta">
           <p className={styles.valueLabel}>VALOR TOTAL DA PROPOSTA</p>
           <p className={`${styles.value} ${valueClassName}`}>{value}</p>
-          {showPaymentTerms && (
-            <p className={styles.paymentNote}>Condições de pagamento conforme descritas na proposta.</p>
+          {showPaymentTerms && paymentTerms?.trim() && (
+            <p className={styles.paymentNote}>
+              {paymentTerms.trim()}
+            </p>
           )}
         </section>
       </main>

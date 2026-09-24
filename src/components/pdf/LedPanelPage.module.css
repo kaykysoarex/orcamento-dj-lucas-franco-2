@@ -1,0 +1,36 @@
+.page {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1055px;
+  height: 1491px;
+  overflow: hidden;
+  background: radial-gradient(circle at 62% 34%, rgba(24, 81, 127, .16), transparent 32%), linear-gradient(180deg, #090b0e 0%, #050607 100%);
+}
+
+.texture { position: absolute; inset: 0; z-index: 1; background-repeat: repeat; background-size: 420px 420px; opacity: .08; mix-blend-mode: overlay; pointer-events: none; }
+.frame { position: absolute; inset: 16px; z-index: 2; border: 1px solid rgba(185, 135, 45, .55); pointer-events: none; }
+.blueLight, .goldLight { position: absolute; z-index: 2; height: 3px; border-radius: 2px; pointer-events: none; }
+.blueLight { top: -110px; left: -50px; width: 255px; background: #279dff; box-shadow: 0 0 8px rgba(39, 157, 255, .75); transform: rotate(48deg); }
+.goldLight { right: -50px; bottom: 136px; width: 255px; background: #e0a53a; box-shadow: 0 0 8px rgba(224, 165, 58, .45); transform: rotate(37deg); }
+
+.header { position: absolute; top: 76px; right: 92px; left: 92px; z-index: 3; text-align: left; }
+.kicker { margin: 0 0 18px; color: rgba(201, 148, 53, .86); font-family: "Montserrat", Arial, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 3.5px; }
+.header h1 { margin: 0; color: #c99435; font-family: "Cormorant Garamond", Georgia, serif; font-size: 78px; font-weight: 400; line-height: .9; letter-spacing: .4px; }
+.titleLine { width: 95px; height: 2px; margin-top: 18px; background: rgba(201, 169, 97, .7); }
+.subtitle { margin: 17px 0 0; color: rgba(242, 238, 230, .78); font-family: "Montserrat", Arial, sans-serif; font-size: 18px; font-weight: 400; letter-spacing: 2.4px; }
+
+.imageFrame { position: absolute; top: 316px; right: 92px; left: 92px; z-index: 3; height: 604px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(201, 148, 53, .58); background: rgba(255, 255, 255, .025); box-sizing: border-box; }
+.image { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.imagePlaceholder { margin: 0; color: rgba(242, 238, 230, .58); font-family: "Montserrat", Arial, sans-serif; font-size: 18px; }
+
+.specifications { position: absolute; top: 1005px; right: 92px; left: 92px; z-index: 3; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid rgba(201, 148, 53, .58); border-bottom: 1px solid rgba(201, 148, 53, .4); }
+.specification { min-height: 150px; padding: 30px 42px; box-sizing: border-box; }
+.specification + .specification { border-left: 1px solid rgba(201, 148, 53, .42); }
+.specificationLabel { margin: 0; color: #d4a142; font-family: "Montserrat", Arial, sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 2.6px; }
+.specificationValue { margin: 16px 0 0; color: #f2eee6; font-family: "Cormorant Garamond", Georgia, serif; font-size: 50px; font-weight: 500; line-height: 1; }
+
+.footer { position: absolute; right: 92px; bottom: 62px; left: 92px; z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.footer p { margin: 0 0 18px; color: rgba(242, 238, 230, .62); font-family: "Montserrat", Arial, sans-serif; font-size: 15px; font-weight: 300; }
+.logo { display: block; width: 260px; height: auto; object-fit: contain; }
+
+.pageSurface, .page { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
