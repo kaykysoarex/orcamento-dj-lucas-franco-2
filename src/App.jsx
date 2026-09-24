@@ -466,9 +466,6 @@ export default function OrcamentoApp() {
   // A estrutura é apenas visual; os equipamentos são escolhidos manualmente.
   const estruturaSelecionada = estruturas.find((e) => e.id === estruturaSelecionadaId) || null;
   const isLedPanelSelected = structureMode === "led_panel" && estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID;
-  const selectedStructureForPdf = isLedPanelSelected && ledPanel.image
-    ? { ...estruturaSelecionada, imagens: [ledPanel.image] }
-    : estruturaSelecionada;
   // Itens de pacotes salvos anteriormente, se houver.
   const packageItems = (proposalPkg?.items || [])
     .map((itemOrcamento) => ({
@@ -1020,8 +1017,8 @@ export default function OrcamentoApp() {
 
         {selectedDjProfileReady && <SelectedDjPage dj={selectedDj} />}
 
-        {(structureMode === 'with_structure' || structureMode === 'led_panel') && estruturaSelecionadaId && (
-          <PdfBudgetStructurePage structure={selectedStructureForPdf} />
+        {structureMode === 'with_structure' && estruturaSelecionadaId && (
+          <PdfBudgetStructurePage structure={estruturaSelecionada} />
         )}
 
         {isLedPanelSelected && <LedPanelPage panel={ledPanel} />}
