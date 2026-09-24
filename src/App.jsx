@@ -256,6 +256,8 @@ export default function OrcamentoApp() {
   const [estruturas, setEstruturas] = useState(DEFAULT_ESTRUTURAS);
   const [estruturaSelecionadaId, setEstruturaSelecionadaId] = useState(null);
   const [ledPanel, setLedPanel] = useState({ width: "", height: "", image: "", imageName: "" });
+  const [ledPanelEnabled, setLedPanelEnabled] = useState(false);
+  const [showStructureSelector, setShowStructureSelector] = useState(false);
   const [equipamentosAdicionais, setEquipamentosAdicionais] = useState([]); // { itemId, quantidade, valorUnitario }
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
@@ -285,7 +287,6 @@ export default function OrcamentoApp() {
   const [proposalNumber, setProposalNumber] = useState(null);
   const [savedProposals, setSavedProposals] = useState([]);
   const [currentProposalId, setCurrentProposalId] = useState(null);
-  const [structureMode, setStructureMode] = useState(""); // '' | 'none' | 'with_structure' | 'led_panel'
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [pdfActionState, setPdfActionState] = useState("idle"); // idle | generating
@@ -323,13 +324,13 @@ export default function OrcamentoApp() {
     setBudgetValueInput(restoredBudgetValueInCents ? formatBudgetValue(restoredBudgetValueInCents) : "");
     setBudgetValueError("");
 
-    // Restore the dedicated LED panel mode, including proposals saved before it gained its own button.
+    // Restore both choices independently. Proposals from the earlier model
+    // stored the LED panel in selectedStructureId, so keep that compatible.
     const restoredStructureId = proposal.selectedStructureId || proposal.packageId || null;
-    const mode = restoredStructureId === LED_PANEL_STRUCTURE_ID
-      ? "led_panel"
-      : proposal.structureMode || (proposal.packageId ? "with_structure" : "none");
-    setStructureMode(mode);
-    setEstruturaSelecionadaId(restoredStructureId);
+    const restoredLegacyLedPanel = restoredStructureId === LED_PANEL_STRUCTURE_ID;
+    setEstruturaSelecionadaId(restoredLegacyLedPanel ? null : restoredStructureId);
+    setShowStructureSelector(Boolean(restoredStructureId && !restoredLegacyLedPanel));
+    setLedPanelEnabled(restoredLegacyLedPanel || Boolean(proposal.ledPanel));
     const savedLedImage = String(proposal.ledPanel?.image || "");
     const userAddedLedImage = savedLedImage.startsWith("data:image/") ? savedLedImage : "";
     setLedPanel({
@@ -468,7 +469,8 @@ export default function OrcamentoApp() {
   // A estrutura é apenas visual; os equipamentos são escolhidos manualmente.
   const estruturaSelecionada = estruturas.find((e) => e.id === estruturaSelecionadaId) || null;
   const hasSelectedStandardStructure = Boolean(estruturaSelecionada && estruturaSelecionada.id !== LED_PANEL_STRUCTURE_ID);
-  const isLedPanelSelected = structureMode === "led_panel" && estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID;
+  const isLedPanelSelected = ledPanelEnabled;
+  const hasNoEventStructure = !hasSelectedStandardStructure && !isLedPanelSelected;
   // Itens de pacotes salvos anteriormente, se houver.
   const packageItems = (proposalPkg?.items || [])
     .map((itemOrcamento) => ({
@@ -500,9 +502,9 @@ export default function OrcamentoApp() {
     showDuration,
     selectedDjId,
     notes,
-    structureMode,
     estruturaSelecionadaId,
     ledPanel,
+    ledPanelEnabled,
     selectedPkgId,
     packages,
     estruturas,
@@ -515,7 +517,7 @@ export default function OrcamentoApp() {
     experienceUrl: EXPERIENCE_URL,
   }), [
     proposalNumber, clientName, eventDate, eventLocal, eventType, showDuration, selectedDjId, notes,
-    structureMode, estruturaSelecionadaId, ledPanel, selectedPkgId, packages, estruturas, customEquipment,
+    estruturaSelecionadaId, ledPanel, ledPanelEnabled, selectedPkgId, packages, estruturas, customEquipment,
     equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms, budgetValueInCents,
     EXPERIENCE_URL,
   ]);
@@ -542,7 +544,7 @@ export default function OrcamentoApp() {
     return () => clearTimeout(saveProposalTimer.current);
   }, [
     loaded, proposalNumber, currentProposalId, clientName, eventDate, eventLocal, eventType,
-    showDuration, selectedDjId, notes, structureMode, estruturaSelecionadaId, ledPanel, selectedPkgId, packages, estruturas,
+    showDuration, selectedDjId, notes, estruturaSelecionadaId, ledPanel, ledPanelEnabled, selectedPkgId, packages, estruturas,
     customEquipment, equipamentosAdicionais, extraItems, paymentTerms, showPaymentTerms,
     budgetValueInCents, priceOverride, selectedItemIds,
   ]);
@@ -554,6 +556,7 @@ export default function OrcamentoApp() {
 
   function selecionarEstrutura(id) {
     setEstruturaSelecionadaId(id);
+    setShowStructureSelector(true);
   }
 
   function updateLedPanel(field, value) {
@@ -749,7 +752,11 @@ export default function OrcamentoApp() {
       packageName: proposalPkg?.name || "Estrutura selecionada para o seu evento", 
       packageSnapshot: copyPackage(proposalPkg),
       // preserve structure and item selections so saved proposals fully restore
-      structureMode,
+      structureMode: hasSelectedStandardStructure && isLedPanelSelected
+        ? "with_structure_and_led_panel"
+        : hasSelectedStandardStructure
+          ? "with_structure"
+          : isLedPanelSelected ? "led_panel" : "none",
       selectedStructureId: estruturaSelecionadaId,
       ledPanel: isLedPanelSelected ? { ...ledPanel } : null,
       selectedItemIds,
@@ -799,6 +806,9 @@ export default function OrcamentoApp() {
     setBudgetValueError("");
     setExtraItems([]);
     setPriceOverride(null);
+    setEstruturaSelecionadaId(null);
+    setLedPanelEnabled(false);
+    setShowStructureSelector(false);
     setLedPanel({ width: "", height: "", image: "", imageName: "" });
     setCurrentProposalId(null);
     restoredProposalIdRef.current = null;
@@ -1642,18 +1652,18 @@ export default function OrcamentoApp() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <button
                 type="button"
-                onClick={() => { setStructureMode('none'); setEstruturaSelecionadaId(null); }}
-                aria-pressed={structureMode === 'none'}
-                className={`obg-pkg-chip ${structureMode === 'none' ? 'active' : ''}`}
-                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: structureMode === 'none' ? '#0c0d10' : '#fff', border: structureMode === 'none' ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: structureMode === 'none' ? '#fff' : '#000', minHeight: 72 }}
+                onClick={() => { setEstruturaSelecionadaId(null); setLedPanelEnabled(false); setShowStructureSelector(false); }}
+                aria-pressed={hasNoEventStructure}
+                className={`obg-pkg-chip ${hasNoEventStructure ? 'active' : ''}`}
+                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: hasNoEventStructure ? '#0c0d10' : '#fff', border: hasNoEventStructure ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: hasNoEventStructure ? '#fff' : '#000', minHeight: 72 }}
               >
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>Somente DJ e equipamentos</div>
-                    <div style={{ fontSize: 13, color: structureMode === 'none' ? '#dcd8d3' : '#6e675f' }}>Continue escolhendo os itens abaixo.</div>
+                    <div style={{ fontSize: 13, color: hasNoEventStructure ? '#dcd8d3' : '#6e675f' }}>Continue escolhendo os itens abaixo.</div>
                   </div>
                   <div style={{ marginLeft: 8 }}>
-                    {structureMode === 'none' ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />} 
+                    {hasNoEventStructure ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
                   </div>
                 </div>
               </button>
@@ -1661,52 +1671,51 @@ export default function OrcamentoApp() {
               <button
                 type="button"
                 onClick={() => {
-                  setStructureMode('with_structure');
-                  if (estruturaSelecionadaId === LED_PANEL_STRUCTURE_ID) setEstruturaSelecionadaId(null);
+                  setShowStructureSelector(true);
                 }}
-                aria-pressed={structureMode === 'with_structure'}
-                className={`obg-pkg-chip ${structureMode === 'with_structure' ? 'active' : ''}`}
-                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: structureMode === 'with_structure' ? '#0c0d10' : '#fff', border: structureMode === 'with_structure' ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: structureMode === 'with_structure' ? '#fff' : '#000', minHeight: 72 }}
+                aria-pressed={hasSelectedStandardStructure}
+                className={`obg-pkg-chip ${hasSelectedStandardStructure ? 'active' : ''}`}
+                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: hasSelectedStandardStructure ? '#0c0d10' : '#fff', border: hasSelectedStandardStructure ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: hasSelectedStandardStructure ? '#fff' : '#000', minHeight: 72 }}
               >
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>Adicionar estrutura</div>
-                    <div style={{ fontSize: 13, color: structureMode === 'with_structure' ? '#dcd8d3' : '#6e675f' }}>Escolha uma das opções disponíveis.</div>
+                    <div style={{ fontSize: 13, color: hasSelectedStandardStructure ? '#dcd8d3' : '#6e675f' }}>Escolha uma das opções disponíveis.</div>
                   </div>
                   <div style={{ marginLeft: 8 }}>
-                    {structureMode === 'with_structure' ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
+                    {hasSelectedStandardStructure ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
                   </div>
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => { setStructureMode('led_panel'); setEstruturaSelecionadaId(LED_PANEL_STRUCTURE_ID); }}
-                aria-pressed={structureMode === 'led_panel'}
-                className={`obg-pkg-chip ${structureMode === 'led_panel' ? 'active' : ''}`}
-                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: structureMode === 'led_panel' ? '#0c0d10' : '#fff', border: structureMode === 'led_panel' ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: structureMode === 'led_panel' ? '#fff' : '#000', minHeight: 72 }}
+                onClick={() => { setLedPanelEnabled((enabled) => !enabled); }}
+                aria-pressed={isLedPanelSelected}
+                className={`obg-pkg-chip ${isLedPanelSelected ? 'active' : ''}`}
+                style={{ borderRadius: 14, padding: 12, textAlign: 'left', background: isLedPanelSelected ? '#0c0d10' : '#fff', border: isLedPanelSelected ? '2px solid #c79a2b' : '1px solid #e5ddd2', color: isLedPanelSelected ? '#fff' : '#000', minHeight: 72 }}
               >
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>Painel de LED</div>
-                    <div style={{ fontSize: 13, color: structureMode === 'led_panel' ? '#dcd8d3' : '#6e675f' }}>Configure medidas e imagem para a proposta.</div>
+                    <div style={{ fontSize: 13, color: isLedPanelSelected ? '#dcd8d3' : '#6e675f' }}>Configure medidas e imagem para a proposta.</div>
                   </div>
                   <div style={{ marginLeft: 8 }}>
-                    {structureMode === 'led_panel' ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
+                    {isLedPanelSelected ? <div style={{ width: 28, height: 28, borderRadius: 999, background: '#c79a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} color="#fff" /></div> : <div style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid #e5ddd2' }} />}
                   </div>
                 </div>
               </button>
             </div>
 
-            {/* The LED panel has its own primary option; the gallery only lists standard structures. */}
-            {(structureMode === 'with_structure' || structureMode === 'led_panel') && (
+            {/* Standard structures and the LED panel are independent choices. */}
+            {(showStructureSelector || isLedPanelSelected) && (
               <div style={{ marginTop: 12 }}>
-                {structureMode === 'with_structure' && <>
+                {showStructureSelector && <>
                   <p className="obg-equipment-help">Selecione uma estrutura para incluir na proposta.</p>
                   <SeletorEstruturas
                     estruturas={estruturas.filter((estrutura) => estrutura.id !== LED_PANEL_STRUCTURE_ID)}
                     estruturaSelecionadaId={estruturaSelecionadaId}
-                    onSelecionar={(id) => { setEstruturaSelecionadaId(id); setStructureMode('with_structure'); }}
+                    onSelecionar={selecionarEstrutura}
                   />
                 </>}
                 {isLedPanelSelected && (
@@ -1874,7 +1883,8 @@ export default function OrcamentoApp() {
                   <div style={{ width:'100%', maxWidth:480, background:'#fff', borderRadius:12, padding:16, boxShadow:'0 -8px 30px rgba(0,0,0,0.2)' }}>
                     <h3>Resumo</h3>
                     <div style={{ maxHeight: 340, overflow:'auto' }}>
-                      <div style={{ marginBottom:8 }}><strong>Estrutura:</strong> {estruturaSelecionadaId ? (estruturas.find(s=>s.id===estruturaSelecionadaId)?.nome || '—') : 'Sem estrutura'}</div>
+                      <div style={{ marginBottom:8 }}><strong>Estrutura:</strong> {hasSelectedStandardStructure ? estruturaSelecionada.nome : 'Sem estrutura'}</div>
+                      <div style={{ marginBottom:8 }}><strong>Painel de LED:</strong> {isLedPanelSelected ? 'Adicionado' : 'Não adicionado'}</div>
                       <div style={{ marginBottom:8 }}><strong>DJ responsável:</strong> {selectedDj?.displayName || 'Não selecionado'}</div>
                       <div>
                         <strong>Itens</strong>
