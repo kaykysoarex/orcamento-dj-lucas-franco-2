@@ -292,7 +292,6 @@ export default function OrcamentoApp() {
   const [pdfActionState, setPdfActionState] = useState("idle"); // idle | generating
   const [pdfNotice, setPdfNotice] = useState("");
   const [pdfProgress, setPdfProgress] = useState(null);
-  const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
   const saveTimer = useRef(null);
   const savePaymentTimer = useRef(null);
   const saveBudgetValueTimer = useRef(null);
@@ -933,63 +932,35 @@ export default function OrcamentoApp() {
     }
   }
 
-  function downloadAndOfferWhatsApp(file) {
-    downloadProposalPdfFile(file);
-    setShareFallbackOpen(true);
-    setPdfNotice("O PDF foi baixado. Agora anexe o arquivo na conversa do WhatsApp.");
-  }
-
   async function handleWhatsAppShare() {
     if (!validateProposalAction() || pdfActionState !== "idle") return;
+    // Open the target while the original click is still active. Browsers block
+    // windows opened only after the asynchronous PDF rendering has finished.
+    const whatsAppWindow = window.open("about:blank", "_blank");
     setPdfNotice("");
     setPdfProgress(null);
-    setShareFallbackOpen(false);
     setPdfActionState("generating");
 
-    let result;
     try {
-      result = await getProposalPdfFile({
+      const { file } = await getProposalPdfFile({
         onProgress: ({ current, total }) => {
           setPdfProgress({ current, total });
           setPdfNotice(`Preparando PDF — página ${current} de ${total}`);
         },
       });
+      downloadProposalPdfFile(file);
+
+      if (whatsAppWindow && !whatsAppWindow.closed) {
+        whatsAppWindow.location.replace(whatsAppFallbackUrl);
+        whatsAppWindow.focus();
+      } else {
+        window.location.assign(whatsAppFallbackUrl);
+      }
+      setPdfNotice("PDF baixado. O WhatsApp foi aberto para você anexar o arquivo.");
     } catch (error) {
+      whatsAppWindow?.close();
       if (import.meta.env.DEV) console.error("Falha ao gerar PDF para compartilhamento", error);
       setPdfNotice("Não foi possível gerar o PDF. Tente novamente.");
-      setPdfProgress(null);
-      setPdfActionState("idle");
-      return;
-    }
-
-    const shareData = {
-      files: [result.file],
-      title: "Proposta Lucas Franco — DJ",
-      text: buildWhatsAppMessage({ clientName, selectedDjName: selectedDj?.displayName }),
-    };
-    const canShareFile = typeof navigator.share === "function"
-      && typeof navigator.canShare === "function"
-      && navigator.canShare({ files: [result.file] });
-
-    if (!canShareFile) {
-      downloadAndOfferWhatsApp(result.file);
-      setPdfProgress(null);
-      setPdfActionState("idle");
-      return;
-    }
-
-    try {
-      setPdfProgress(null);
-      setPdfNotice("Abrindo compartilhamento...");
-      await navigator.share(shareData);
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      if (result.fromCache === false && ["NotAllowedError", "SecurityError"].includes(error?.name)) {
-        setPdfNotice("PDF pronto. Toque novamente para compartilhar.");
-        return;
-      }
-      if (import.meta.env.DEV) console.error("Falha ao compartilhar proposta", error);
-      downloadAndOfferWhatsApp(result.file);
     } finally {
       setPdfProgress(null);
       setPdfActionState("idle");
@@ -1315,13 +1286,6 @@ export default function OrcamentoApp() {
         .obg-btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--line) !important; }
         .obg-pdf-hint { margin: -4px 0 0; color: #9a5a33; font-size: 11px; font-weight: 600; text-align: center; }
         .obg-action-notice { margin: -4px 0 0; color: var(--ink-soft); font-size: 12px; font-weight: 600; text-align: center; }
-        .obg-share-fallback { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 14, 12, .42); }
-        .obg-share-fallback-dialog { width: min(100%, 390px); border-radius: 16px; padding: 22px; background: #fff; box-shadow: 0 18px 52px rgba(0, 0, 0, .22); }
-        .obg-share-fallback-dialog h3 { margin: 0 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; }
-        .obg-share-fallback-dialog p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
-        .obg-share-fallback-actions { display: flex; gap: 8px; margin-top: 18px; }
-        .obg-share-fallback-actions button, .obg-share-fallback-actions a { flex: 1; min-height: 44px; border-radius: 999px; font-weight: 700; cursor: pointer; }
-        .obg-share-fallback-actions a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 
         .obg-card {
           background: var(--dark-card); color: var(--cream);
@@ -2026,18 +1990,6 @@ export default function OrcamentoApp() {
         </button>
       </div>
 
-      {shareFallbackOpen && (
-        <div className="obg-share-fallback" role="presentation">
-          <div className="obg-share-fallback-dialog" role="dialog" aria-modal="true" aria-labelledby="share-fallback-title">
-            <h3 id="share-fallback-title">PDF baixado</h3>
-            <p>Seu navegador não permite enviar o arquivo diretamente. Abra o WhatsApp e anexe o PDF baixado.</p>
-            <div className="obg-share-fallback-actions">
-              <a className="obg-btn-dark" href={whatsAppFallbackUrl} target="_blank" rel="noopener noreferrer" onClick={() => setShareFallbackOpen(false)}>Abrir WhatsApp</a>
-              <button type="button" className="obg-btn-outline" onClick={() => setShareFallbackOpen(false)}>Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
